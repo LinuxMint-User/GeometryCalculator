@@ -5,6 +5,8 @@ description = "几何计算器 后端"
 #readme = "README.en.md"
 requires-python = ">=3.12"
 dependencies = [
-    "pywebview>=6.0",
+    # Linux 上用 Qt 后端（GTK 后端有问题，见 https://github.com/zhdbk3/GeometryCalculator/issues/8）
+    "pywebview[qt]>=6.0; sys_platform == \"linux\"",
+    "pywebview>=6.0; sys_platform != \"linux\"",
     "sympy>=1.14.0",
 ]

@@ -9,9 +9,10 @@ from abc import ABC, abstractmethod
 from collections import deque
 import pickle
 
-from sympy import Symbol, Expr, simplify, Eq, Line2D, solve, Segment, Point2D, Matrix, acos, latex, Abs, sqrtdenest
+from sympy import Symbol, Expr, simplify, Eq, Line2D, solve, Segment, Point2D, Matrix, acos, latex, Abs, sqrtdenest, refine
 from sympy import sqrt, sin, cos, tan, pi, Integer  # noqa
 from sympy.logic.boolalg import BooleanTrue, BooleanFalse
+from sympy.assumptions import Q
 from webview import windows, FileDialog
 
 from data import MathObj, GCSymbol, GCPoint, Cond, to_raw_latex
@@ -60,7 +61,8 @@ class AddCond(ABC):
             # 化简方程（组）并过滤 True
             eqs = []
             for eq in func(problem, *args):
-                eq = simplify(eq)
+                # 精化要在 simplify 之后，否则 simplify 会把 Abs(分子)/Abs(分母) 又合并回 Abs(分式)
+                eq = Problem._refine_abs(simplify(eq))
                 if isinstance(eq, BooleanFalse):
                     raise ValueError('该条件不可能成立！')
                 if not isinstance(eq, BooleanTrue):
@@ -174,6 +176,28 @@ class Problem:
         a, b, c = self._get_line(line).coefficients
         return Abs(a * x0 + b * y0 + c) / sqrt(a ** 2 + b ** 2)
 
+    @staticmethod
+    def _refine_abs(expr: Expr) -> Expr:
+        """
+        化简表达式中的 ``Abs(分式)``。
+
+        原因：SymPy 求解器无法处理 Abs 参数为分式的方程，会抛
+        ``NotImplementedError``（https://github.com/zhdbk3/GeometryCalculator/issues/9）。
+        对每个 Abs 参数为分式的节点，显式声明其分母非零（分母为 0 意味着图形退化，
+        此时相关条件本身就无意义），再用 ``refine`` 精化：
+        - 偶数次幂直接去掉 Abs，如 ``Abs(a/b)**2 -> a**2/b**2``
+        - 奇数次幂变成 ``Abs(分子)/Abs(分母)``，Abs 参数变为整式后求解器即可处理
+        注意：这里只对分母添加非零假设，而不是把变量直接假设为实数，数学上严格等价。
+        只对单个 Abs 节点 refine（而非整个表达式），否则在有复杂 sqrt 的表达式上会极慢。
+        """
+        def _repl(abs_expr: Expr) -> Expr:
+            _, den = abs_expr.args[0].as_numer_denom()
+            if den == 1:
+                return abs_expr
+            return refine(abs_expr, Q.nonzero(den))
+        # 注意：query 不能用类 ``Abs``，否则 SymPy 会把 ``Abs(x)`` 错替换成 ``x``（丢失符号信息）
+        return expr.replace(lambda e: isinstance(e, Abs), _repl)
+
     def _eval_str_expr(self, expr: str) -> Expr | Never:
         """
         尝试解析字符串表达式，解析失败会报错
@@ -208,7 +232,7 @@ class Problem:
         ]
         for pattern, repl in rules:
             expr = re.sub(pattern, repl, expr)
-        return simplify(eval(expr))  # 不能用 ``sympy.sympify``，不然碰到没有的符号它会自己造
+        return self._refine_abs(simplify(eval(expr)))  # 不能用 ``sympy.sympify``，不然碰到没有的符号它会自己造
 
     def add_symbol(self, name: str, domain_settings: Optional[DomainSettings] = None):
         self._add_math_obj(GCSymbol(name, domain_settings))
@@ -466,11 +490,25 @@ class Problem:
         left = to_raw_latex(expr)
 
         target = Symbol('target')
-        eqs = [Eq(target, self._eval_str_expr(expr))]
-        for i in self.cond_ids:
-            eqs.extend(self.math_objs[i].eqs)  # type: ignore
-        symbols = [target] + [self.math_objs[i].sp_symbol for i in self.symbol_names]  # type: ignore
-        solutions = solve(eqs, symbols, dict=True)
+        target_eq = self._refine_abs(Eq(target, self._eval_str_expr(expr)))
+        cond_eqs = [self._refine_abs(eq) for i in self.cond_ids for eq in self.math_objs[i].eqs]  # type: ignore
+        symbol_names = [self.math_objs[i].sp_symbol for i in self.symbol_names]  # type: ignore
+
+        try:
+            # 直接求解整个方程组
+            # 注意：SymPy 求解器有内部 bug（https://github.com/zhdbk3/GeometryCalculator/issues/12），
+            # 某些方程组（如一边是另一边的整数倍）会抛 AttributeError，此时走下面的兜底策略
+            solutions = solve([target_eq] + cond_eqs, [target] + symbol_names, dict=True)
+        except Exception:
+            # 兜底：先求解条件方程组得到未知数的所有解，再回代到目标方程求解 target
+            # 拆成两步可以有效绕开 SymPy 求解器在复杂根式方程组上的崩溃
+            solutions = []
+            unknown_solutions = solve(cond_eqs, symbol_names, dict=True)
+            for unknown_solution in unknown_solutions:
+                for target_solution in solve(
+                    [target_eq.subs(unknown_solution)], [target], dict=True
+                ):
+                    solutions.append({**unknown_solution, **target_solution})
 
         # 关于 ``sqrtdenest``：https://github.com/zhdbk3/GeometryCalculator/issues/5
         result = set(simplify(sqrtdenest(s[target])) for s in solutions)

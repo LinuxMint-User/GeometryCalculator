@@ -49,6 +49,29 @@ Get-ChildItem -Path <你的几何计算器文件夹路径> -Recurse -Filter *.dl
 
 参考：https://github.com/r0x0r/pywebview/issues/1638#issuecomment-2896747582
 
+## Linux 下编译/运行？
+
+Linux 下需要安装 Qt 相关的系统依赖，例如（以 Arch Linux 为例）：
+
+```bash
+sudo pacman -S qt6-base
+```
+
+然后安装 Python 依赖（`pywebview[qt]` 会随 `requirements.txt` 在 Linux 上自动安装）：
+
+```bash
+pip install -r requirements.txt
+```
+
+> [!NOTE]
+> 之所以在 Linux 上强制使用 Qt 后端而不是默认的 GTK，是因为 GTK 后端在某些环境下列出了界面却显示不出来，详见 [issue #8](https://github.com/zhdbk3/GeometryCalculator/issues/8)。
+>
+> 如果运行后窗口没有显示出来，可以尝试手动指定 Qt 后端：
+>
+> ```bash
+> PYWEBVIEW_GUI=qt python main.py
+> ```
+
 ## 在开发模式下运行项目
 
 ### 1. 安装依赖
