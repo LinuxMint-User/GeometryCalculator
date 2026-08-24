@@ -1,0 +1,660 @@
+/* ============================================================
+   几何计算器 · 手写前端
+   MD3 (Material You) 色彩 tokens，浅色/深色两套，通过
+   <html data-theme="light|dark"> 切换。
+   变量名与 @material/web 默认一致，覆盖其内置主题。
+   ============================================================ */
+
+:root {
+  /* ---- 浅色主题 ---- */
+  --md-sys-color-primary: #6750a4;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: #eadfff;
+  --md-sys-color-on-primary-container: #21005d;
+  --md-sys-color-secondary: #625b71;
+  --md-sys-color-on-secondary: #ffffff;
+  --md-sys-color-secondary-container: #e8def8;
+  --md-sys-color-on-secondary-container: #1d192b;
+  --md-sys-color-tertiary: #7d5260;
+  --md-sys-color-on-tertiary: #ffffff;
+  --md-sys-color-tertiary-container: #ffd8e4;
+  --md-sys-color-on-tertiary-container: #31111d;
+  --md-sys-color-error: #b3261e;
+  --md-sys-color-on-error: #ffffff;
+  --md-sys-color-error-container: #f9dedc;
+  --md-sys-color-on-error-container: #410e0b;
+  --md-sys-color-background: #fef7ff;
+  --md-sys-color-on-background: #1d1b20;
+  --md-sys-color-surface: #fef7ff;
+  --md-sys-color-on-surface: #1d1b20;
+  --md-sys-color-surface-variant: #e7e0ec;
+  --md-sys-color-on-surface-variant: #49454f;
+  --md-sys-color-outline: #79747e;
+  --md-sys-color-outline-variant: #cac4d0;
+  --md-sys-color-surface-container-lowest: #ffffff;
+  --md-sys-color-surface-container-low: #f7f2fa;
+  --md-sys-color-surface-container: #f3edf7;
+  --md-sys-color-surface-container-high: #ece6f0;
+  --md-sys-color-surface-container-highest: #e6e0e9;
+  --md-sys-color-inverse-surface: #322f35;
+  --md-sys-color-inverse-on-surface: #f5eff7;
+  --md-sys-color-inverse-primary: #d0bcff;
+  --md-sys-color-shadow: #000000;
+}
+
+[data-theme="dark"] {
+  /* ---- 深色主题 ---- */
+  --md-sys-color-primary: #d0bcff;
+  --md-sys-color-on-primary: #381e72;
+  --md-sys-color-primary-container: #4f378b;
+  --md-sys-color-on-primary-container: #eadfff;
+  --md-sys-color-secondary: #ccc2dc;
+  --md-sys-color-on-secondary: #332d41;
+  --md-sys-color-secondary-container: #4a4458;
+  --md-sys-color-on-secondary-container: #e8def8;
+  --md-sys-color-tertiary: #efb8c8;
+  --md-sys-color-on-tertiary: #492532;
+  --md-sys-color-tertiary-container: #633b48;
+  --md-sys-color-on-tertiary-container: #ffd8e4;
+  --md-sys-color-error: #f2b8b5;
+  --md-sys-color-on-error: #601410;
+  --md-sys-color-error-container: #8c1d18;
+  --md-sys-color-on-error-container: #f9dedc;
+  --md-sys-color-background: #141218;
+  --md-sys-color-on-background: #e6e0e9;
+  --md-sys-color-surface: #141218;
+  --md-sys-color-on-surface: #e6e0e9;
+  --md-sys-color-surface-variant: #49454f;
+  --md-sys-color-on-surface-variant: #cac4d0;
+  --md-sys-color-outline: #938f99;
+  --md-sys-color-outline-variant: #49454f;
+  --md-sys-color-surface-container-lowest: #0f0d13;
+  --md-sys-color-surface-container-low: #1d1b20;
+  --md-sys-color-surface-container: #211f26;
+  --md-sys-color-surface-container-high: #2b2930;
+  --md-sys-color-surface-container-highest: #36343b;
+  --md-sys-color-inverse-surface: #e6e0e9;
+  --md-sys-color-inverse-on-surface: #322f35;
+  --md-sys-color-inverse-primary: #6750a4;
+  --md-sys-color-shadow: #000000;
+}
+
+/* ============================================================
+   页面布局
+   ============================================================ */
+
+* {
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: var(--md-sys-color-surface-container-high)
+    var(--md-sys-color-surface-container-low);
+}
+
+/* 强制 hidden 生效：MD 组件的 :host{display:...} 会覆盖浏览器 UA 的 [hidden] 规则 */
+[hidden] {
+  display: none !important;
+}
+
+/* 浮层组件定义前隐藏内容，避免 FOUC：
+   md-menu/md-dialog 未升级（:not(:defined)）时内容会按普通 HTML 平铺渲染；
+   组件定义后由组件自身管理 open/closed 显示 */
+md-menu:not(:defined),
+md-dialog:not(:defined) {
+  display: none;
+}
+
+body {
+  margin: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--md-sys-color-background);
+  color: var(--md-sys-color-on-background);
+  font-family: system-ui, "Segoe UI", "PingFang SC", "Microsoft YaHei",
+    sans-serif;
+}
+
+/* 顶栏 */
+.app-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  background: var(--md-sys-color-surface-container);
+  border-bottom: 1px solid var(--md-sys-color-outline-variant);
+  flex: none;
+  z-index: 10;
+}
+
+.app-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.app-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.lang-switch {
+  border: none;
+  background: transparent;
+  color: var(--md-sys-color-primary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 20px;
+}
+
+.lang-switch:hover {
+  background: var(--md-sys-color-surface-container-high);
+}
+
+/* Tab 导航 */
+md-tabs {
+  display: block;
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 8px 16px 0;
+  flex: none;
+  overflow-y: hidden; /* 消除库内 md-divider 1px 溢出导致的垂直滚动条 */
+}
+
+/* 主内容区：视口内唯一滚动容器（顶栏/tab 固定，内容超长时元素内滚动） */
+main {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  max-width: 960px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
+  gap: 16px;
+  /* 卡片按各自内容高度，不被 grid 拉伸对齐 */
+  align-items: start;
+}
+
+/* 卡片（MD3 风格：大圆角 + surface-container 底色） */
+.card {
+  background: var(--md-sys-color-surface-container-low);
+  border-radius: 28px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.1);
+}
+
+.card h2 {
+  margin: 0 0 16px;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.card h3 {
+  margin: 8px 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* 表单布局 */
+.card md-outlined-text-field,
+.card md-outlined-select {
+  display: block;
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+/* 添加面板（schema 驱动表单） */
+.add-row {
+  margin-bottom: 12px;
+}
+
+.form-group {
+  margin-bottom: 12px;
+}
+
+.form-group-label {
+  display: block;
+  font-size: 14px;
+  color: var(--md-sys-color-on-surface-variant);
+  margin-bottom: 4px;
+}
+
+.form-group-fields {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.form-hint {
+  font-size: 12px;
+  color: var(--md-sys-color-on-surface-variant);
+  margin: -6px 0 12px;
+}
+
+.form-error {
+  color: var(--md-sys-color-error);
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.cond-relop {
+  font-size: 18px;
+  color: var(--md-sys-color-on-surface-variant);
+  flex: 0 0 auto;
+  margin-bottom: 12px;
+}
+
+.cond-row,
+.del-row,
+.solve-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.cond-row {
+  flex-wrap: wrap;
+}
+
+/* 只拉伸输入框；符号/三角形保持内容宽度，避免出现大片空白 */
+.cond-row md-outlined-text-field {
+  flex: 1 1 120px;
+  min-width: 0;
+  margin-bottom: 12px;
+}
+
+.del-row > *,
+.solve-row > * {
+  flex: 1;
+  min-width: 0;
+}
+
+/* checkbox 用 label 包裹文字：自定义元素无法被 <label for> 原生关联，点击文字需 JS 联动 */
+.domain-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* 对象列表 */
+.obj-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0;
+}
+
+.obj-item {
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--md-sys-color-surface-container-high);
+  font-size: 15px;
+}
+
+.obj-section {
+  margin-bottom: 12px;
+}
+
+/* 删除区 */
+.del-row {
+  margin-top: 8px;
+}
+
+.del-btn {
+  flex-shrink: 0;
+}
+
+/* 求解区 */
+.duration {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+#solve-result {
+  margin-top: 16px;
+}
+
+/* 文档区 */
+.markdown-body {
+  line-height: 1.7;
+}
+
+.markdown-body img {
+  max-width: 100%;
+}
+
+/* 文档内链接：MD3 风格（primary 色 + 细下划线），替代浏览器默认蓝色下划线 */
+.markdown-body a {
+  color: var(--md-sys-color-primary);
+  text-decoration: none;
+  border-bottom: 1px solid var(--md-sys-color-outline);
+  transition: border-color 0.15s;
+}
+
+.markdown-body a:hover {
+  border-bottom-color: var(--md-sys-color-primary);
+}
+
+/* 目录锚点滚动时预留间距，避免标题贴住内容区顶缘 */
+.markdown-body h2,
+.markdown-body h3 {
+  scroll-margin-top: 8px;
+}
+
+/* 文档页：工具条 + 两栏（左文档列表 / 右内容），高度撑满视口，右侧内容独立滚动 */
+#view-docs {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.docs-card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.docs-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: 14px;
+  flex: none;
+}
+
+.docs-toolbar md-outlined-select {
+  width: 180px;
+  margin-bottom: 0;
+}
+
+.docs-layout {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 24px;
+  align-items: stretch;
+}
+
+/* 左侧文档列表：自身独立滚动 */
+.docs-list {
+  flex: 0 0 200px;
+  width: 200px;
+  overflow-y: auto;
+  border-right: 1px solid var(--md-sys-color-outline-variant);
+  padding-right: 12px;
+}
+
+.docs-item {
+  display: block;
+  padding: 10px 14px;
+  margin-bottom: 4px;
+  border-radius: 8px;
+  color: var(--md-sys-color-on-surface-variant);
+  text-decoration: none;
+  font-size: 14px;
+  line-height: 1.4;
+  transition: background 0.15s, color 0.15s;
+}
+
+.docs-group-label {
+  padding: 6px 14px 4px;
+  font-size: 12px;
+  color: var(--md-sys-color-on-surface-variant);
+  opacity: 0.7;
+  letter-spacing: 0.05em;
+}
+
+.docs-item:hover {
+  background: var(--md-sys-color-surface-container-high);
+}
+
+.docs-item.active {
+  color: var(--md-sys-color-primary);
+  background: var(--md-sys-color-secondary-container);
+  font-weight: 500;
+}
+
+/* 右侧内容区：chips 条固定在上方（横线即内容裁剪边），正文在 .docs-content 内独立滚动 */
+.docs-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 章节导航 chips（固定，不随正文滚动；底部横线即内容区顶缘；横向滚动条正常显示） */
+.doc-toc {
+  flex: none;
+  position: relative;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 4px 2px 10px;
+  overflow-x: auto;
+  background: var(--md-sys-color-surface-container-low);
+  border-bottom: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.doc-toc-chip {
+  padding: 5px 14px;
+  border-radius: 16px;
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface-variant);
+  text-decoration: none;
+  font-size: 13px;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.doc-toc-chip:hover {
+  background: var(--md-sys-color-surface-container-highest);
+}
+
+.doc-toc-chip.active {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+  font-weight: 500;
+}
+
+/* 正文内容：独立滚动容器（裁剪边 = 章节导航底部横线处） */
+.docs-content {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* 窄屏：文档列表改为顶部横向滚动条 */
+@media (max-width: 768px) {
+  .docs-layout {
+    flex-direction: column;
+  }
+
+  .docs-list {
+    flex: none;
+    width: 100%;
+    position: static;
+    max-height: none;
+    display: flex;
+    overflow-x: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    padding: 0 0 8px;
+  }
+
+  .docs-item {
+    white-space: nowrap;
+    margin-bottom: 0;
+  }
+}
+
+/* 过渡动画 */
+.view {
+  animation: fade-in 0.15s ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ============================================================
+   滚动条美化：MD3 风格细滚动条（WebKit + Firefox）
+   滚动条宽度/颜色由顶部 * 规则统一声明
+   ============================================================ */
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--md-sys-color-surface-container-low);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--md-sys-color-surface-container-high);
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--md-sys-color-surface-container-highest);
+}
+
+/* ============================================================
+   Toast：底部浮动轻提示（自绘，MD3 反色配色）
+   ============================================================ */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--md-sys-color-inverse-surface);
+  color: var(--md-sys-color-inverse-on-surface);
+  padding: 12px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  z-index: 1000;
+  animation: toast-in 0.2s ease-out;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* ============================================================
+   操作状态指示器：顶栏圆点（绿=成功 / 黄=警告 / 红=失败）
+   ============================================================ */
+.status-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: filter 0.15s;
+}
+
+.status-dot:hover {
+  filter: brightness(1.15);
+}
+
+.status-ok {
+  background: #2e7d32;
+}
+
+.status-warn {
+  background: #f9a825;
+}
+
+.status-error {
+  background: #c62828;
+}
+
+/* 状态详情对话框 */
+.status-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.status-body .status-level {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.status-body .status-msg {
+  word-break: break-word;
+}
+
+.status-body .status-time {
+  font-size: 12px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* 卡片底部错误提示（仅 error 时显示） */
+.card-error-hint {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--md-sys-color-error);
+}
+
+/* ============================================================
+   UI 控件文字禁止框选（按钮/Tab/菜单项/开关/标题栏/chips 等）
+   输入框与文档正文保持可选
+   ============================================================ */
+md-filled-button,
+md-text-button,
+md-primary-tab,
+md-menu-item,
+md-switch,
+md-checkbox,
+.app-bar,
+.status-dot,
+.doc-toc-chip,
+.domain-option,
+.duration,
+.form-group-label,
+.card h2,
+.card h3,
+md-outlined-select,
+.cond-relop,
+.docs-toolbar,
+.docs-group-label,
+.docs-item,
+.toast {
+  -webkit-user-select: none;
+  user-select: none;
+}

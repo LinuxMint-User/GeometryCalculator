@@ -1,0 +1,13 @@
+{
+  "current": "2.2.0",
+  "versions": [
+    { "id": "2.2.0", "label": "v2.2.0" }
+  ],
+  "documents": [
+    { "id": "maintainer-guide", "group": "maintainer", "title": "使用指南", "titleEn": "User Guide", "file": "guide.md", "fileEn": "guide.en.md" },
+    { "id": "maintainer-about", "group": "maintainer", "title": "关于", "titleEn": "About", "file": "about.md", "fileEn": "about.en.md" },
+    { "id": "changelog", "group": "maintainer", "title": "更新日志", "titleEn": "Changelog", "file": "changelog.md", "fileEn": "changelog.en.md" },
+    { "id": "guide", "group": "original", "title": "使用指南", "titleEn": "User Guide", "file": "docs.md", "fileEn": "docs.en.md" },
+    { "id": "about", "group": "original", "title": "关于", "titleEn": "About", "file": "about.md", "fileEn": "about.en.md" }
+  ]
+}

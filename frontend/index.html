@@ -1,18 +1,184 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
   <head>
-    <title><%= productName %></title>
-
-    <meta charset="utf-8" />
-    <meta name="description" content="<%= productDescription %>" />
-    <meta name="format-detection" content="telephone=no" />
-    <meta name="msapplication-tap-highlight" content="no" />
-    <meta
-      name="viewport"
-      content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width<% if (ctx.mode.cordova || ctx.mode.capacitor) { %>, viewport-fit=cover<% } %>"
-    />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>几何计算器</title>
+    <script>
+      // 首帧前应用主题，避免深色模式用户刷新时白屏闪烁（FOUC）
+      // 与 main.js initTheme 的取默认值逻辑保持一致：localStorage 优先，其次系统偏好
+      (function () {
+        try {
+          var saved = localStorage.getItem('gc-theme');
+          var dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+          document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+        } catch (e) {
+          // localStorage 不可用（如隐私模式）时保持默认 light
+        }
+      })();
+    </script>
+    <link rel="stylesheet" href="css/style.css" />
+    <!-- KaTeX 样式（vendor 化后生效） -->
+    <link rel="stylesheet" href="vendor/katex/katex.min.css" />
   </head>
   <body>
-    <!-- quasar:entry-point -->
+    <!-- 顶栏 -->
+    <header class="app-bar">
+      <h1 class="app-title" data-i18n="appTitle">几何计算器</h1>
+      <div class="app-bar-actions">
+        <button id="status-dot" class="status-dot status-ok" data-i18n-aria="statusAria" aria-label="操作状态" title="操作状态"></button>
+        <button id="menu-btn" class="lang-switch" data-i18n-aria="menuBtnAria" aria-label="打开菜单">☰</button>
+        <md-menu id="app-menu" anchor="menu-btn" positioning="popover">
+          <md-menu-item id="menu-lang">
+            <div slot="headline" data-i18n="menuLangLabel">切换语言</div>
+            <div slot="end" id="menu-lang-current">中文</div>
+          </md-menu-item>
+          <md-menu-item id="menu-theme" keep-open>
+            <div slot="headline" data-i18n="themeLabel">深色模式</div>
+            <md-switch slot="end" id="menu-theme-switch"></md-switch>
+          </md-menu-item>
+          <md-menu-item id="menu-clear">
+            <div slot="headline" data-i18n="clearLocal">清除本地偏好</div>
+          </md-menu-item>
+        </md-menu>
+      </div>
+    </header>
+
+    <!-- Tab 导航 -->
+    <md-tabs id="nav-tabs" data-i18n-aria="navAria" aria-label="主导航">
+      <md-primary-tab data-i18n="tabAdd">添加</md-primary-tab>
+      <md-primary-tab data-i18n="tabSolve">求解</md-primary-tab>
+      <md-primary-tab data-i18n="tabDocs">文档</md-primary-tab>
+    </md-tabs>
+
+    <main>
+      <!-- ============ 视图 1：添加 ============ -->
+      <section id="view-add" class="view">
+        <div class="grid">
+          <!-- 添加面板（单面板 + 类型下拉，表单由 schema 驱动动态渲染） -->
+          <div class="card">
+            <h2 data-i18n="addTitle">添加对象</h2>
+            <div class="add-row">
+              <md-outlined-select id="add-type" data-i18n-label="addTypeLabel">
+                <md-select-option value="unknown" data-i18n="addUnknownTitle"></md-select-option>
+                <md-select-option value="point" data-i18n="addPointTitle"></md-select-option>
+                <md-select-option value="cond" data-i18n="addCondTitle"></md-select-option>
+              </md-outlined-select>
+            </div>
+            <div id="add-form"></div>
+            <div id="add-error" class="form-error" hidden></div>
+            <md-filled-button id="add-submit-btn" data-i18n="addBtn">添加</md-filled-button>
+            <div id="add-error-hint" class="card-error-hint" hidden></div>
+          </div>
+
+          <!-- 对象列表与删除 -->
+          <div class="card">
+            <h2 data-i18n="objListTitle">对象列表</h2>
+            <div class="obj-section">
+              <h3 data-i18n="unknowns">未知数</h3>
+              <div id="unknown-list" class="obj-list"></div>
+            </div>
+            <div class="obj-section">
+              <h3 data-i18n="points">点</h3>
+              <div id="point-list" class="obj-list"></div>
+            </div>
+            <div class="obj-section">
+              <h3 data-i18n="conds">条件</h3>
+              <div id="cond-list" class="obj-list"></div>
+            </div>
+            <div class="del-row">
+              <md-outlined-select id="del-select" data-i18n-label="delSelect">
+                <!-- 选项由 render.js 动态填充 -->
+              </md-outlined-select>
+            </div>
+            <div id="del-error" class="form-error" hidden></div>
+            <md-filled-button id="del-btn" class="del-btn" data-i18n="delBtn">删除</md-filled-button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 视图 2：求解 ============ -->
+      <section id="view-solve" class="view" hidden>
+        <div class="card">
+          <h2 data-i18n="solveTitle">计算求解</h2>
+          <md-outlined-text-field id="solve-expr" label="请输入要计算的表达式" data-i18n-label="solveExpr"></md-outlined-text-field>
+          <div class="solve-row">
+            <md-filled-button id="solve-btn" data-i18n="solveBtn">🚀 启动！</md-filled-button>
+            <span id="solve-duration" class="duration"></span>
+          </div>
+          <md-circular-progress id="solve-progress" indeterminate hidden data-i18n-aria="progressAria" aria-label="求解进行中"></md-circular-progress>
+          <div id="solve-result" class="obj-list"></div>
+          <div id="solve-error-hint" class="card-error-hint" hidden></div>
+        </div>
+      </section>
+
+      <!-- ============ 视图 3：文档 ============ -->
+      <section id="view-docs" class="view" hidden>
+        <div class="card docs-card">
+          <div class="docs-toolbar">
+            <span data-i18n="docVersion">文档版本</span>
+            <md-outlined-select id="doc-version-select" data-i18n-label="docVersion">
+              <!-- 选项由 main.js 从 doc/manifest.json 填充 -->
+            </md-outlined-select>
+          </div>
+          <div class="docs-layout">
+            <nav id="docs-list" class="docs-list"></nav>
+            <div class="docs-main">
+              <div id="doc-toc" class="doc-toc"></div>
+              <div id="docs-content" class="markdown-body docs-content"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- 删除确认对话框 -->
+    <md-dialog id="del-dialog">
+      <div slot="headline" data-i18n="delTitle">删除对象</div>
+      <form slot="content" id="del-dialog-form" method="dialog">
+        <div id="del-dialog-info"></div>
+      </form>
+      <div slot="actions">
+        <md-text-button form="del-dialog-form" value="cancel" data-i18n="cancel">取消</md-text-button>
+        <md-filled-button form="del-dialog-form" value="confirm" data-i18n="delBtn">删除</md-filled-button>
+      </div>
+    </md-dialog>
+
+    <!-- 操作状态详情对话框 -->
+    <md-dialog id="status-dialog">
+      <div slot="headline" data-i18n="statusTitle">操作状态</div>
+      <div slot="content" id="status-dialog-body" class="status-body"></div>
+      <div slot="actions">
+        <md-text-button id="status-close-btn" data-i18n="closeBtn">关闭</md-text-button>
+      </div>
+    </md-dialog>
+
+    <!-- 轻量 toast（由 main.js showToast 控制） -->
+    <div id="toast" class="toast" role="status" hidden></div>
+
+    <!-- 依赖映射：本地 vendor（离线可用） -->
+    <script type="importmap">
+      {
+        "imports": {
+          "@material/web/": "./vendor/@material/web/",
+          "@lit/reactive-element": "./vendor/@lit/reactive-element/reactive-element.js",
+          "@lit/reactive-element/": "./vendor/@lit/reactive-element/",
+          "@lit/context": "./vendor/@lit/context/index.js",
+          "@lit/context/": "./vendor/@lit/context/",
+          "@lit-labs/ssr-dom-shim": "./vendor/@lit-labs/ssr-dom-shim/index.js",
+          "@lit-labs/ssr-dom-shim/": "./vendor/@lit-labs/ssr-dom-shim/",
+          "lit": "./vendor/lit/index.js",
+          "lit/": "./vendor/lit/",
+          "lit-element": "./vendor/lit-element/index.js",
+          "lit-element/": "./vendor/lit-element/",
+          "lit-html": "./vendor/lit-html/lit-html.js",
+          "lit-html/": "./vendor/lit-html/",
+          "tslib": "./vendor/tslib/tslib.es6.mjs",
+          "katex": "./vendor/katex/katex.mjs",
+          "marked": "./vendor/marked/marked.esm.js"
+        }
+      }
+    </script>
+    <script type="module" src="js/main.js"></script>
   </body>
 </html>
