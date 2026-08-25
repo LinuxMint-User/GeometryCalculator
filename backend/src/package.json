@@ -1,0 +1,16 @@
+{
+  "name": "geometry-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "轻量 TS 符号计算引擎（替代 Python + SymPy 后端）",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^26.3.0",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
+  }
+}
