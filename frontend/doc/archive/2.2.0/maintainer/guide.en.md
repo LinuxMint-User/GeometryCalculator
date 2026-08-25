@@ -19,7 +19,7 @@ Point names must be uppercase English letters. Subscripts and superscripts are n
 
 ## Expressions
 
-Our expression parser is implemented by a computation engine: the engine is written in TypeScript and compiled to native browser JavaScript (ESM) at build time, with no external dependencies.
+Our expression parser is built on Python’s `eval` ~~(which means you can totally inject arbitrary code and attack the backend)~~, with some custom extensions on top.
 
 ### Operations
 
@@ -43,7 +43,6 @@ Note: The multiplication symbol `*` is required and cannot be omitted.
 | `sin`  |    Sine     |
 | `cos`  |   Cosine    |
 | `tan`  |   Tangent   |
-| `acos` | Arc cosine |
 
 **Note:** Functions must be called with parentheses.
 

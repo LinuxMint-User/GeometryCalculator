@@ -1,9 +1,4 @@
-# Documentation (Maintainer)
-
-> This guide is maintained by the maintainer on top of the original
-> "Documentation", recording feature notes and future changes of this fork;
-> it is revised continuously as features evolve. The original guide lives
-> under "Original docs > User Guide" (author: 着火的冰块nya, GPLv3).
+# Documentation
 
 ## Unknown
 
@@ -15,11 +10,11 @@ The name of an unknown can be
 ## Point
 
 Point names must be uppercase English letters. Subscripts and superscripts are not supported.  
-~~(There probably aren't any problems that need more than 26 points anyway.)~~
+~~(If you ever need more than 26 points... well, good luck.)~~
 
 ## Expressions
 
-Our expression parser is implemented by a computation engine: the engine is written in TypeScript and compiled to native browser JavaScript (ESM) at build time, with no external dependencies.
+Our expression parser is built on Python’s `eval` ~~(which means you can totally inject arbitrary code and attack the backend)~~, with some custom extensions on top.
 
 ### Operations
 
@@ -43,7 +38,6 @@ Note: The multiplication symbol `*` is required and cannot be omitted.
 | `sin`  |    Sine     |
 | `cos`  |   Cosine    |
 | `tan`  |   Tangent   |
-| `acos` | Arc cosine |
 
 **Note:** Functions must be called with parentheses.
 
@@ -104,7 +98,7 @@ For example: `(114, 514)` represents the vector $(114, 514)$
 
 ### Area of Triangle
 
-Format: `St` + the three points of the triangle
+Format: `St` + the triangle’s three vertices
 
 For example: `StABC` represents the area $S_{\triangle ABC}$
 
@@ -112,22 +106,6 @@ For example: `StABC` represents the area $S_{\triangle ABC}$
 
 Format: `k` or `b` followed by the line name
 
-For example: `kAB` represents the slope $k_{AB}$ of line $AB$.
+For example: `kAB` represents the slope $k_{AB}$ of line $AB`
 
 Note: You must ensure the line is not vertical.
-
----
-
-### Distance from a Point to a Line
-
-Format: `d` + point name + `t` + line name
-
-For example: `dAtBC` represents the distance from point A to line BC, denoted as $d_{A\text{ to }BC}$
-
----
-
-## FAQ
-
-### How to represent circles, parabolas, and other figures?
-
-Studying such figures is essentially studying the points on them. You can relate the x- and y-coordinates of a point with a certain relation, e.g. $x_A^2 + y_A^2 = 1$ or $y_A = 11 x_A^2 + 45 x_A + 14$. For a circle, you can use "points whose distance to the center equals the radius" to represent points on the circle, and "lines whose distance to the center equals the radius" to represent tangent lines.

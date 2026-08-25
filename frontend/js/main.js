@@ -89,6 +89,21 @@ document.getElementById('menu-clear').addEventListener('click', () => {
   appMenu.open = false;
 });
 
+// 重置计算器（清空所有对象），弹确认对话框防误触
+document.getElementById('menu-reset').addEventListener('click', () => {
+  appMenu.open = false;
+  document.getElementById('reset-dialog').open = true;
+});
+
+document.getElementById('reset-dialog').addEventListener('close', async (e) => {
+  if (e.target.returnValue === 'confirm') {
+    api.reset();
+    await refresh();
+    showToast(t('resetSuccess'));
+    setOpStatus('ok');
+  }
+});
+
 // 同步菜单状态：当前语言名 + 主题开关（语言/主题变化时调用）
 function syncMenuState() {
   // 显示"点击后将切换到的语言"，而不是当前语言

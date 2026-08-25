@@ -695,6 +695,10 @@ export class Problem {
     exportHistory() {
         return JSON.parse(JSON.stringify(this.history));
     }
+    /** 清零：清空全部对象与历史（等价于重放空历史） */
+    reset() {
+        this.restoreHistory([]);
+    }
     restoreHistory(items) {
         this.mathObjs.clear();
         this.symbolNames = [];

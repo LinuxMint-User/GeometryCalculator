@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.4.0
+
+- Computation core rewritten as a TypeScript engine (replacing the original Python/SymPy backend); all computation happens in the browser, no external process needed
+- Frontend talks to the engine directly, bridge layer removed; operation history is saved automatically and restored on page refresh
+- New `acos` angle function (e.g. solving triangle angles), symbolic solving first with numeric fallback
+- New "Reset calculator" action (menu ☰ → Reset calculator) to clear all objects at once
+
 ## v2.2.0
 
 - Brand-new frontend UI (Material 3 style, with light/dark themes and a zh/en switch)

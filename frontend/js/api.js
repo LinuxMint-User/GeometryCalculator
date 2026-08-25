@@ -62,4 +62,14 @@ export const api = {
   },
 
   solve: (expr) => problem.solve(expr),
+
+  // 清零：清空引擎对象与本地保存的历史
+  reset: () => {
+    problem.reset();
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (e) {
+      // localStorage 不可用时静默跳过
+    }
+  },
 };

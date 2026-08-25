@@ -40,6 +40,9 @@
           <md-menu-item id="menu-clear">
             <div slot="headline" data-i18n="clearLocal">清除本地偏好</div>
           </md-menu-item>
+          <md-menu-item id="menu-reset">
+            <div slot="headline" data-i18n="menuReset">重置计算器</div>
+          </md-menu-item>
         </md-menu>
       </div>
     </header>
@@ -150,6 +153,18 @@
       <div slot="content" id="status-dialog-body" class="status-body"></div>
       <div slot="actions">
         <md-text-button id="status-close-btn" data-i18n="closeBtn">关闭</md-text-button>
+      </div>
+    </md-dialog>
+
+    <!-- 重置计算器确认对话框 -->
+    <md-dialog id="reset-dialog">
+      <div slot="headline" data-i18n="resetTitle">重置计算器</div>
+      <form slot="content" id="reset-dialog-form" method="dialog">
+        <div data-i18n="resetHint">将清空所有未知数、点和条件，且不可撤销。</div>
+      </form>
+      <div slot="actions">
+        <md-text-button form="reset-dialog-form" value="cancel" data-i18n="cancel">取消</md-text-button>
+        <md-filled-button form="reset-dialog-form" value="confirm" data-i18n="resetBtn">重置</md-filled-button>
       </div>
     </md-dialog>
 
