@@ -23,27 +23,50 @@ import { renderAll, renderResults, renderLatex, renderAddForm, collectFormValues
 import { getObjType, getCondType, DEFAULT_OBJ_TYPE, DOMAIN_SETS } from './types.js';
 import { setLang, getLang, t } from './i18n.js';
 
-/* ---------------- 主题（浅色/深色） ---------------- */
-const THEME_KEY = 'gc-theme';
+/* ---------------- 主题（浅色/深色/跟随系统） ---------------- */
+const THEME_KEY = 'gc-theme'; // 'light' | 'dark' | 'system'（缺省 system）
+const themeMq = window.matchMedia?.('(prefers-color-scheme: dark)');
+
+// 当前主题模式：localStorage 未设置（或为 system）时跟随系统偏好
+function getThemeMode() {
+  const v = localStorage.getItem(THEME_KEY);
+  return v === 'light' || v === 'dark' ? v : 'system';
+}
+
+function systemTheme() {
+  return themeMq?.matches ? 'dark' : 'light';
+}
 
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
   const sw = document.getElementById('menu-theme-switch');
   sw.selected = theme === 'dark';
-  localStorage.setItem(THEME_KEY, theme);
 }
 
 function initTheme() {
-  const saved = localStorage.getItem(THEME_KEY);
-  const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
-  applyTheme(saved ?? (prefersDark ? 'dark' : 'light'));
+  const mode = getThemeMode();
+  applyTheme(mode === 'system' ? systemTheme() : mode);
+  // 未手动设置时跟随系统实时切换（深浅色）；手动设置后固定，直到"清除本地偏好"
+  themeMq?.addEventListener?.('change', () => {
+    if (getThemeMode() === 'system') applyTheme(systemTheme());
+  });
 }
 
 /* ---------------- 语言切换 ---------------- */
 const LANG_KEY = 'gc-lang';
 
+// 系统语言：未手动设置时按浏览器/系统语言初始化（zh 开头 → 中文，其余 → 英文）
+function systemLang() {
+  return (navigator.language || 'zh-CN').toLowerCase().startsWith('zh') ? 'zh-CN' : 'en-US';
+}
+
 function initLang() {
-  setLang(localStorage.getItem(LANG_KEY) ?? getLang());
+  const saved = localStorage.getItem(LANG_KEY);
+  setLang(saved ?? systemLang());
+  // 未手动设置时跟随系统语言（如 Android 系统语言切换后重进应用）
+  window.addEventListener('languagechange', () => {
+    if (!localStorage.getItem(LANG_KEY)) setLang(systemLang());
+  });
 }
 
 /* ---------------- 顶栏菜单（语言 / 主题 / 清除本地偏好） ---------------- */
@@ -75,16 +98,19 @@ document.getElementById('menu-lang').addEventListener('click', () => {
 
 // 主题切换（带文字 + 开关的菜单项；keepopen 保持菜单展开，便于连续尝试深浅效果）
 document.getElementById('menu-theme').addEventListener('click', () => {
-  const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  const mode = getThemeMode();
+  const current = mode === 'system' ? systemTheme() : mode;
+  const next = current === 'dark' ? 'light' : 'dark';
+  localStorage.setItem(THEME_KEY, next); // 手动设置后固定，不再跟随系统
   applyTheme(next);
 });
 
-// 清除本地持久化设置（主题/语言），恢复默认——给用户"状态可撤销"的自由
+// 清除本地持久化设置（主题/语言），恢复默认（跟随系统）——给用户"状态可撤销"的自由
 document.getElementById('menu-clear').addEventListener('click', () => {
   localStorage.removeItem(THEME_KEY);
   localStorage.removeItem(LANG_KEY);
   initTheme();
-  setLang('zh-CN');
+  initLang();
   showToast(t('clearedLocal'));
   appMenu.open = false;
 });

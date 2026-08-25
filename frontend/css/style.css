@@ -121,6 +121,9 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 12px 24px;
+  /* Android 边缘到边缘（edge-to-edge）时 WebView 视口延伸到状态栏后，
+     状态栏高度计入顶部内边距；桌面/浏览器 env() 为 0，无影响 */
+  padding-top: calc(12px + env(safe-area-inset-top, 0px));
   background: var(--md-sys-color-surface-container);
   border-bottom: 1px solid var(--md-sys-color-outline-variant);
   flex: none;
@@ -498,11 +501,20 @@ main {
     border-right: none;
     border-bottom: 1px solid var(--md-sys-color-outline-variant);
     padding: 0 0 8px;
+    /* 分组标签与文档条目横排时垂直居中，避免被最高的条目拉伸后文字偏上 */
+    align-items: center;
+  }
+
+  /* 分组标签与条目均禁止收缩换行：中文标签可收缩到单字宽，会被压成逐字竖排、撑高整行 */
+  .docs-group-label {
+    flex: none;
+    white-space: nowrap;
   }
 
   .docs-item {
     white-space: nowrap;
     margin-bottom: 0;
+    flex: none;
   }
 }
 

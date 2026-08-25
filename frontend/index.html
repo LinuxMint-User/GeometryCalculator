@@ -2,15 +2,18 @@
 <html lang="zh-CN" data-theme="light">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>几何计算器</title>
     <script>
       // 首帧前应用主题，避免深色模式用户刷新时白屏闪烁（FOUC）
-      // 与 main.js initTheme 的取默认值逻辑保持一致：localStorage 优先，其次系统偏好
+      // 与 main.js 保持一致：gc-theme 存 'light'/'dark'/'system'（缺省 = 跟随系统）
       (function () {
         try {
           var saved = localStorage.getItem('gc-theme');
-          var dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var dark;
+          if (saved === 'dark') dark = true;
+          else if (saved === 'light') dark = false;
+          else dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
           document.documentElement.dataset.theme = dark ? 'dark' : 'light';
         } catch (e) {
           // localStorage 不可用（如隐私模式）时保持默认 light
