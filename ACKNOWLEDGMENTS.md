@@ -1,5 +1,7 @@
 简体中文 | [English (US)](ACKNOWLEDGMENTS.en.md)
 
+> 维护者说明：本仓库为维护分支（fork）。原版 ACKNOWLEDGMENTS（原作者致谢与几何计算器 1 贡献者名单）已完整保留，见 [ACKNOWLEDGMENTS-Origin.md](ACKNOWLEDGMENTS-Origin.md)。
+
 # 感谢几何计算器 2 的贡献者
 
 <a href="https://github.com/zhdbk3/GeometryCalculator/graphs/contributors">
@@ -8,37 +10,23 @@
 
 Made with [contrib.rocks](https://contrib.rocks).
 
-# 感谢几何计算器 1 的贡献者
+原作者的贡献者名单与几何计算器 1 的贡献者致谢见 [ACKNOWLEDGMENTS-Origin.md](ACKNOWLEDGMENTS-Origin.md)。
 
-- GitHub 仓库：https://github.com/YuzhenQin/GeometryCalculator
+## 感谢开源项目（本分支当前使用）
 
-|         名字         |                     哔哩哔哩                     |                  GitHub                   |
-|:------------------:|:--------------------------------------------:|:-----------------------------------------:|
-| 去世自动机 (YuzhenQin)  | [哔哩哔哩](https://space.bilibili.com/470160343) |  [GitHub](https://github.com/YuzhenQin1)  |
-|    ElectroUnity    | [哔哩哔哩](https://space.bilibili.com/562633104) | [GitHub](https://github.com/ElectroUnity) |
-| 薛定谔的按钮 (DingerBtn) | [哔哩哔哩](https://space.bilibili.com/668182235) |  [GitHub](https://github.com/DingerBtn)   |
-|      GreshAnt      |                      -                       | [GitHub](https://github.com/Kevin-O-Hsu)  |
-
-## 感谢开源项目
-
-本项目使用或参考了以下开源项目，遵循它们的开源协议，并在此致以由衷的感谢：
+本分支（revamp）当前实际使用或参考了以下开源项目，遵循它们的开源协议，并在此致以由衷的感谢：
 
 ### 前端
 
-|                                     项目                                     |                                      许可证                                      |      简介 / 用途       |
-|:--------------------------------------------------------------------------:|:-----------------------------------------------------------------------------:|:------------------:|
-|                      [Vue.js](https://cn.vuejs.org/)                       |            [MIT](https://github.com/vuejs/core/blob/main/LICENSE)             |        前端框架        |
-|                       [Quasar](https://quasar.dev/)                        |       [MIT](https://github.com/quasarframework/quasar/blob/dev/LICENSE)       |    基于 Vue 的前端框架    |
-|                        [KaTeX](https://katex.org/)                         |            [MIT](https://github.com/KaTeX/KaTeX/blob/main/LICENSE)            |       渲染数学公式       |
-|         [markdown-it](https://github.com/markdown-it/markdown-it)          |     [MIT](https://github.com/markdown-it/markdown-it/blob/master/LICENSE)     |    渲染 Markdown     |
-| [github-markdown-css](https://github.com/sindresorhus/github-markdown-css) | [MIT](https://github.com/sindresorhus/github-markdown-css/blob/main/license)  | GitHub Markdown 样式 |
-|              [QFluentWidgets](https://qfluentwidgets.com/zh/)              | [GPL-3.0](https://github.com/zhiyiYo/PyQt-Fluent-Widgets/blob/master/LICENSE) |     参考 UI 样式设计     |
+| 项目 | 许可证 | 用途 |
+| --- | --- | --- |
+| [Material Web Components](https://github.com/material-components/material-web) | [Apache-2.0](https://github.com/material-components/material-web/blob/main/LICENSE) | UI 组件 |
+| [KaTeX](https://katex.org/) | [MIT](https://github.com/KaTeX/KaTeX/blob/main/LICENSE) | 渲染数学公式 |
+| [marked](https://github.com/markedjs/marked) | [MIT](https://github.com/markedjs/marked/blob/master/LICENSE.md) | 渲染 Markdown |
+| [contrib.rocks](https://contrib.rocks) | — | 生成贡献者头像图 |
 
-### 后端
+### 计算引擎
 
-|                      项目                      |                                  许可证                                   |     简介 / 用途      |
-|:--------------------------------------------:|:----------------------------------------------------------------------:|:----------------:|
-| [SymPy](https://www.sympy.org/zh/index.html) |   [BSD-3-Clause](https://github.com/sympy/sympy/blob/master/LICENSE)   |   符号运算库，本项目的核心   |
-|  [pywebview](https://pywebview.flowrl.com)   | [BSD-3-Clause](https://github.com/r0x0r/pywebview/blob/master/LICENSE) | 在 Python 中运行网页前端 |
+本分支的计算引擎由 TypeScript 编写，编译为浏览器原生 JavaScript，**零第三方运行时依赖**。
 
-还有一些基础性（如 Python）、附属性（如 Pinia）、间接使用（如 mpmath）或作为工具（如 Nuitka）的项目，在此不一一列出，但一并致以感谢。
+原版所用前后端框架（Vue / Quasar / markdown-it / SymPy / pywebview 等）的致谢见 [ACKNOWLEDGMENTS-Origin.md](ACKNOWLEDGMENTS-Origin.md)。
