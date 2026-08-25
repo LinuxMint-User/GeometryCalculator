@@ -1,13 +1,5 @@
 # 更新日志
 
-## v2.5.0（待发布）
-
-- 新增 Tauri 桌面壳：桌面端（Linux / Windows / macOS）以原生窗口运行，`tauri dev` 开发 / `tauri build` 打包
-- 新增 Android 支持：可构建 APK（`tauri android build --apk --debug`），系统要求 Android 7.0（API 24）及以上，支持 arm64-v8a / armeabi-v7a / x86 / x86_64 四种架构
-- 修复 Android 边缘到边缘布局：顶栏计入状态栏高度，不再被遮挡
-- 修复文档页中文模式样式异常：窄屏下"原版文档 / 维护者文档"分组标签不再逐字竖排
-- 主题与语言改为跟随系统：未手动设置时实时跟随系统深浅色与系统语言，手动切换后固定，「清除本地偏好」恢复跟随
-
 ## v2.4.0
 
 - 计算核心重写为 TypeScript 引擎（替换原 Python/SymPy 后端），全部计算在浏览器内完成，无需外部进程

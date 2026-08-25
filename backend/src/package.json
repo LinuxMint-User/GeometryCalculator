@@ -1,6 +1,6 @@
 {
   "name": "geometry-engine",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "private": true,
   "type": "module",
   "description": "轻量 TS 符号计算引擎（替代 Python + SymPy 后端）",

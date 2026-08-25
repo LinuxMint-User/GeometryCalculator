@@ -1,13 +1,5 @@
 # Changelog
 
-## v2.5.0 (pending)
-
-- New Tauri desktop shell: runs as a native window on Linux / Windows / macOS (`tauri dev` to develop, `tauri build` to package)
-- New Android support: build an APK with `tauri android build --apk --debug`; requires Android 7.0 (API 24) or later, supports arm64-v8a / armeabi-v7a / x86 / x86_64
-- Fix edge-to-edge layout on Android: the app bar now accounts for the status bar height and is no longer covered
-- Fix Chinese styling glitch in the Docs view: group labels ("Original docs" / "Maintainer docs") no longer wrap vertically on narrow screens
-- Theme and language now follow the system: until set manually, they track the system light/dark preference and system language in real time; manual choice sticks, and "Clear local preferences" restores system-following
-
 ## v2.4.0
 
 - Computation core rewritten as a TypeScript engine (replacing the original Python/SymPy backend); all computation happens in the browser, no external process needed

@@ -4,7 +4,7 @@
 
 ---
 
-# Maintainer Updates (v2.4.0)
+# Maintainer Updates (v2.5.0)
 
 This is a maintained fork of [zhdbk3/GeometryCalculator](https://github.com/zhdbk3/GeometryCalculator), maintained by LinuxMint-User.
 
@@ -16,6 +16,8 @@ This is a maintained fork of [zhdbk3/GeometryCalculator](https://github.com/zhdb
 
 ## New Features
 
+- 🖥️ Tauri desktop shell: runs as a native window on Linux / Windows / macOS
+- 🤖 Android support: build an APK (requires Android 7.0+; supports arm64-v8a / armeabi-v7a / x86 / x86_64)
 - 🧹 One-click "Reset calculator" to clear everything (menu ☰ → Reset calculator)
 - 📐 Angle function `acos` (e.g. solving triangle angles), symbolic solving first with numeric fallback
 - 🔢 Stronger solving: when no symbolic solution is found, a numeric fallback kicks in automatically (marked "approximate") instead of returning nothing
@@ -29,13 +31,41 @@ This is a maintained fork of [zhdbk3/GeometryCalculator](https://github.com/zhdb
 
 ## How to Run (this fork)
 
-No dependencies needed. From `frontend/`, start any static server:
+### Browser preview (lightest, no Tauri needed)
 
 ```bash
-python3 -m http.server 9017
+python3 -m http.server 9017 --directory frontend
 ```
 
 Then open <http://localhost:9017/> in your browser.
+
+## Build & Package
+
+Prerequisites: Rust toolchain (rustup), [Tauri 2 CLI](https://v2.tauri.app/start/cli/) (`cargo install tauri-cli --version "^2"`);
+building the Android APK additionally needs JDK 17+, Android SDK (with NDK), and the cross-compile targets:
+
+```bash
+rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+```
+
+### Desktop (Tauri shell)
+
+```bash
+tauri dev     # dev mode (starts the frontend static server automatically, hot reload), or ./dev.sh
+tauri build   # build release installers (output in src-tauri/target/release/bundle/)
+```
+
+### Android APK
+
+```bash
+tauri android init                    # generate the Android project once (src-tauri/gen/android/, regenerable)
+tauri android build --apk --debug     # build a debug APK
+```
+
+APK output: `src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk`
+
+- Requirement: Android 7.0 (API 24) or later
+- Architectures: arm64-v8a / armeabi-v7a / x86 / x86_64 in one universal APK
 
 The engine source, tests and browser build live in `backend/src/` (TypeScript); for usage details, see the maintainer User Guide / Changelog in the "Docs" tab.
 
