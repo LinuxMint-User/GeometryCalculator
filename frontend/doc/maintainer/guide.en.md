@@ -5,6 +5,49 @@
 > it is revised continuously as features evolve. The original guide lives
 > under "Original docs > User Guide" (author: 着火的冰块nya, GPLv3).
 
+## UI Quick Start
+
+The page has three tabs on top: **Add / Solve / Docs**.
+
+### Adding Objects
+
+- **Type dropdown**: choose the kind of object to add — Unknown / Point / Condition
+- **Unknown**: enter the name and restrict its range (real / positive / non-negative / negative / non-positive / non-zero)
+- **Point**: enter the point name (a single uppercase letter), then fill **exactly 2 of** x / y / Line 1 / Line 2:
+  - x + y: explicit coordinates, e.g. `A(2, 3)`; typing `x` / `y` makes that coordinate an unknown (auto-creating `x_A` / `y_A`)
+  - x + line: the point lies on the line with a known x-coordinate
+  - Line 1 + Line 2: the intersection of the two lines
+- **Condition**: pick the condition type and fill in the objects involved (see table below)
+
+The **object list** on the right shows all added unknowns, points and conditions in real time (rendered with LaTeX).
+
+#### Condition Types
+
+| Type | Meaning | Example |
+| --- | --- | --- |
+| Expression equation | Two expressions are equal | `2a = 6` |
+| Parallel | Two lines are parallel | `AB ∥ CD` |
+| Perpendicular | Two lines are perpendicular | `AB ⟂ CD` |
+| Congruent | Two triangles are congruent | `△ABC ≅ △DEF` |
+| Similar | Two triangles are similar | `△ABC ~ △DEF` |
+| Parallelogram / Rhombus / Rectangle / Square / Equilateral triangle | Quickly add a special shape | — |
+
+### Solving
+
+Switch to the **Solve** tab, enter the target expression (notations below), and hit the button. Results are rendered with LaTeX:
+
+- Symbolic solutions are preferred; within quadratics, exact `a+b√c` forms are given
+- When no symbolic solution exists, a numeric solver runs automatically and results are marked with `≈` (approximate)
+
+### Deleting & Resetting
+
+- On the **Add** page, pick the object to delete from the dropdown on the right; if other objects depend on it, the dependencies are reported
+- **Reset calculator**: menu ☰ (top right) → Reset calculator, to clear all objects at once
+
+### Data Persistence
+
+The operation history is saved automatically in browser local storage; refreshing the page or reopening the app restores your workspace automatically — no manual saving needed.
+
 ## Unknown
 
 The name of an unknown can be
