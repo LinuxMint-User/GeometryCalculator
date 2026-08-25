@@ -1,2 +1,14 @@
+# IDE / 编辑器
 .idea/
-.pnpm-store/
+.vscode/
+
+# 操作系统
+.DS_Store
+Thumbs.db
+
+# Node 依赖
+node_modules/
+
+# Tauri 壳工程编译产物（可重新生成）
+src-tauri/target/
+src-tauri/gen/

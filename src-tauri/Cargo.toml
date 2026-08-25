@@ -1,0 +1,25 @@
+[package]
+name = "geometry-calculator"
+version = "2.5.0"
+description = "几何计算器：符号几何问题求解器（TS 引擎 + Tauri 壳）"
+authors = ["LinuxMint-User"]
+license = "GPL-3.0-only"
+repository = "https://github.com/LinuxMint-User/GeometryCalculator"
+edition = "2021"
+rust-version = "1.77.2"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "geometry_calculator_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.6.3", features = [] }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+tauri = { version = "2.11.3", features = [] }
+tauri-plugin-log = "2"
