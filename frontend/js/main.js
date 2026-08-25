@@ -17,7 +17,7 @@ import '@material/web/menu/menu-item.js';
 
 import { marked } from 'marked';
 import katex from 'katex';
-import { api, hasBridge } from './api.js';
+import { api } from './api.js';
 import { refresh, act, setOnChange } from './state.js';
 import { renderAll, renderResults, renderLatex, renderAddForm, collectFormValues, escapeHtml, updateFormLabels } from './render.js';
 import { getObjType, getCondType, DEFAULT_OBJ_TYPE, DOMAIN_SETS } from './types.js';
@@ -255,11 +255,6 @@ async function handleDelete() {
 
 document.getElementById('del-dialog').addEventListener('close', async (e) => {
   if (e.target.returnValue === 'confirm') {
-    if (!hasBridge) {
-      showToast(t('previewNoDel'));
-      setOpStatus('warn', 'previewNoDel');
-      return;
-    }
     const id = document.getElementById('del-select').value;
     try {
       const requiredBy = await api.getDeeplyRequiredBy(id);
@@ -616,10 +611,7 @@ function bindEvents() {
   document.getElementById('add-type').value = DEFAULT_OBJ_TYPE;
   renderAddForm(DEFAULT_OBJ_TYPE);
   await initDocs();
-  if (hasBridge) {
-    await refresh();
-  } else {
-    // 浏览器预览模式：展示占位
-    renderAll();
-  }
+  // 浏览器持久化：启动时重放上次的历史，恢复现场
+  api.loadFromFile();
+  await refresh();
 })();

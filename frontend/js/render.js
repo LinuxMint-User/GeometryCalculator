@@ -25,23 +25,29 @@ export function renderObjList(container, items) {
     .join('');
 }
 
-// 重建删除下拉框的选项
-export function renderDelOptions(select, items) {
+// 重建删除下拉框的选项并复位选中态。
+// 注意不能靠 select.value='' 清空：value setter 走 select()，空值找不到匹配 option 是 no-op，
+// displayText 会残留被删对象；reset() 会遍历 options 取消选中并重算显示文本。
+export async function renderDelOptions(select, items) {
   const opts = items.map(
     (item) => `<md-select-option value="${escapeHtml(item.id)}">${escapeHtml(item.id)}</md-select-option>`,
   );
   select.innerHTML = opts.join('');
+  // 先等 menu 完成 slot 分配（新选项就位、listController 缓存更新），再复位选中态
+  await select.updateComplete;
+  select.reset();
+  await select.updateComplete;
 }
 
 // 渲染全部列表（由 state 变更触发）
-export function renderAll() {
+export async function renderAll() {
   renderObjList(document.getElementById('unknown-list'), state.unknowns);
   renderObjList(document.getElementById('point-list'), state.points);
   renderObjList(document.getElementById('cond-list'), state.conds);
 
   const delSelect = document.getElementById('del-select');
   const all = [...state.unknowns, ...state.points, ...state.conds];
-  renderDelOptions(delSelect, all);
+  await renderDelOptions(delSelect, all);
 }
 
 // 求解结果（纯文本 LaTeX 行）

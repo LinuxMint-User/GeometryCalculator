@@ -31,8 +31,9 @@ export async function refresh() {
   notify();
 }
 
-// 执行一次后端操作后统一刷新
+// 执行一次后端操作后统一刷新（并保存历史，供刷新页面后重放恢复）
 export async function act(fn) {
   await fn();
   await refresh();
+  api.saveToFile();
 }

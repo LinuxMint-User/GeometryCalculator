@@ -30,13 +30,15 @@ const GREEK: Record<string, string> = {
   pi: '\\pi',
 }
 
-/** 符号名 → LaTeX：希腊拼写转希腊字母；xA 形式转下标 x_A */
+/** 符号名 → LaTeX：希腊拼写转希腊字母；xA / x_A 形式转下标 x_A */
 export function symNameToLatex(name: string): string {
   const greek = GREEK[name]
   if (greek !== undefined) return greek
   if (name.length > 1) {
     const m = /^([a-z])([A-Z]+)$/.exec(name)
     if (m !== null) return `${m[1]}_{${m[2]}}`
+    const us = /^([a-z])_([A-Z][A-Za-z0-9]*)$/.exec(name)
+    if (us !== null) return `${us[1]}_{${us[2]}}`
   }
   return name
 }
@@ -82,7 +84,8 @@ function latexSqrt(e: Extract<Expr, { kind: 'sqrt' }>): string {
 function latexFn(e: Extract<Expr, { kind: 'fn' }>): string {
   const arg = latexExpr(e.arg)
   if (e.name === 'exp') return `e^{${arg}}`
-  return `\\${e.name}${e.arg.kind === 'add' || e.arg.kind === 'mul' ? `\\left(${arg}\\right)` : `\\left(${arg}\\right)`}`
+  const name = e.name === 'acos' ? 'arccos' : e.name
+  return `\\${name}\\left(${arg}\\right)`
 }
 
 /** mul 打印：拆正幂（分子）与负幂（分母），生成 \frac 或直接式 */

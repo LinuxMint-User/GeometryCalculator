@@ -1,52 +1,65 @@
 // 桥接层：前端与计算核心的唯一 IO 出入口。
-// 桌面版走 pywebview（window.pywebview.api.problem）；
-// 未来网页版接 pyodide 时，只需替换本文件的实现，页面逻辑不动。
+// 计算核心为 TS 引擎（backend/src/core 编译产物 frontend/engine/），
+// 页面逻辑不感知引擎形态，这里只是把前端调用映射到 Problem 实例方法。
 
-function getBridge() {
-  return window.pywebview?.api?.problem;
-}
+import { Problem } from '../engine/gc.js';
 
-// 无桥环境（纯浏览器预览）时打印提示
-const bridge = getBridge();
-if (!bridge) {
-  console.warn('[api] 未检测到 pywebview 桥，运行在浏览器预览模式（操作不会真正生效）');
-}
+// 问题单例：整个页面生命周期共用一个（跨页面刷新由 localStorage 历史重放恢复）
+const problem = new Problem();
+
+// 本地持久化：把操作历史序列化保存，刷新页面后重放恢复
+const STORAGE_KEY = 'gc-problem-history';
 
 export const api = {
-  addUnknown: (name, domainSettings) => bridge.add_symbol(name, domainSettings),
-  addPoint: (name, xStr, yStr, line1, line2) =>
-    bridge.add_point(name, xStr, yStr, line1, line2),
+  addUnknown: (name, domainSettings) => problem.addSymbol(name, domainSettings),
+  // types.js 的 api 字段沿用旧桥命名，这里保持兼容
+  add_symbol: (name, domainSettings) => problem.addSymbol(name, domainSettings),
+  addPoint: (name, xStr, yStr, line1, line2) => problem.addPoint(name, xStr, yStr, line1, line2),
+  add_point: (name, xStr, yStr, line1, line2) => problem.addPoint(name, xStr, yStr, line1, line2),
 
-  addExprEq: (input1, input2) => bridge.add_expr_eq(input1, input2),
-  addParallel: (input1, input2) => bridge.add_parallel(input1, input2),
-  addPerp: (input1, input2) => bridge.add_perp(input1, input2),
-  addCong: (input1, input2) => bridge.add_cong(input1, input2),
-  addSim: (input1, input2) => bridge.add_sim(input1, input2),
+  addExprEq: (input1, input2) => problem.addExprEq(input1, input2),
+  addParallel: (input1, input2) => problem.addParallel(input1, input2),
+  addPerp: (input1, input2) => problem.addPerp(input1, input2),
+  addCong: (input1, input2) => problem.addCong(input1, input2),
+  addSim: (input1, input2) => problem.addSim(input1, input2),
 
-  addParallelogram: (input1) => bridge.add_parallelogram(input1),
-  addRhombus: (input1) => bridge.add_rhombus(input1),
-  addRect: (input1) => bridge.add_rect(input1),
-  addSquare: (input1) => bridge.add_square(input1),
-  addEquilateralTriangle: (input1) => bridge.add_equilateral_triangle(input1),
+  addParallelogram: (input1) => problem.addParallelogram(input1),
+  addRhombus: (input1) => problem.addRhombus(input1),
+  addRect: (input1) => problem.addRect(input1),
+  addSquare: (input1) => problem.addSquare(input1),
+  addEquilateralTriangle: (input1) => problem.addEquilateralTriangle(input1),
 
-  getUnknownNames: () => bridge.get_symbol_names(),
-  getPointNames: () => bridge.get_point_names(),
-  getCondIds: () => bridge.get_cond_ids(),
+  getUnknownNames: () => problem.getSymbolNames(),
+  getPointNames: () => problem.getPointNames(),
+  getCondIds: () => problem.getCondIds(),
 
-  getUnknownsLatex: () => bridge.get_symbols_latex(),
-  getPointsLatex: () => bridge.get_points_latex(),
-  getCondsLatex: () => bridge.get_conds_latex(),
+  getUnknownsLatex: () => problem.getSymbolsLatex(),
+  getPointsLatex: () => problem.getPointsLatex(),
+  getCondsLatex: () => problem.getCondsLatex(),
 
-  getDeeplyRequiredBy: (id) =>
-    bridge
-      ? bridge.get_deeply_required_by(id)
-      : Promise.resolve(['B', 'C']), // 预览模式 mock，便于体验删除确认流程
-  delObjs: (ids) => bridge.del_objs(ids),
+  getDeeplyRequiredBy: (id) => problem.getDeeplyRequiredBy(id),
+  delObjs: (ids) => problem.delObjs(ids),
 
-  saveToFile: () => bridge.save_to_file(),
-  loadFromFile: () => bridge.load_from_file(),
+  // 浏览器模式持久化：localStorage 存历史，loadFromFile 重放恢复
+  saveToFile: () => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(problem.exportHistory()));
+    } catch (e) {
+      // localStorage 不可用（隐私模式等）时静默跳过，不阻塞操作
+      console.warn('[api] 历史保存失败', e);
+    }
+  },
+  loadFromFile: () => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return false;
+      problem.restoreHistory(JSON.parse(raw));
+      return true;
+    } catch (e) {
+      console.warn('[api] 历史恢复失败', e);
+      return false;
+    }
+  },
 
-  solve: (expr) => bridge.solve(expr),
+  solve: (expr) => problem.solve(expr),
 };
-
-export const hasBridge = Boolean(bridge);

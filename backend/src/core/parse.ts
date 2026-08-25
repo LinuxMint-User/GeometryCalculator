@@ -4,7 +4,7 @@
 
 import { add, fn, mul, num, pow, rat, sqrt, sym, type Expr, type FnName, type Rat } from './expr.js'
 
-const FN_NAMES: ReadonlySet<string> = new Set(['sin', 'cos', 'tan', 'exp', 'ln', 'sqrt'])
+const FN_NAMES: ReadonlySet<string> = new Set(['sin', 'cos', 'tan', 'exp', 'ln', 'sqrt', 'acos'])
 
 export class ParseError extends Error {
   constructor(

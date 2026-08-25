@@ -37,6 +37,8 @@ export function evalFloat(e: Expr): number {
           return Math.exp(v)
         case 'ln':
           return Math.log(v)
+        case 'acos':
+          return Math.acos(v)
       }
     }
   }
@@ -84,6 +86,8 @@ export function exprToFunction(e: Expr, varName: string): (x: number) => number 
             return (x) => Math.exp(a(x))
           case 'ln':
             return (x) => Math.log(a(x))
+          case 'acos':
+            return (x) => Math.acos(a(x))
         }
       }
     }
@@ -135,6 +139,8 @@ export function exprToFunctionN(e: Expr, varNames: string[]): (xs: number[]) => 
             return (xs) => Math.exp(a(xs))
           case 'ln':
             return (xs) => Math.log(a(xs))
+          case 'acos':
+            return (xs) => Math.acos(a(xs))
         }
       }
     }

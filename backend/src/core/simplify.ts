@@ -2,6 +2,7 @@
 // 代数合并（同类项、同底幂、平方因子提取）已在 expr.ts 的工厂中完成
 
 import { add, isOneRat, isZeroRat, mul, num, pow, rat, sqrt, sym, type Expr, type FnName, type Rat } from './expr.js'
+import { evalFloat } from './numeric.js'
 
 /** 检测参数是否为 k·π 形式（k 为有理数），返回 k；不是则返回 null */
 function piMultipleOf(e: Expr): Rat | null {
@@ -83,6 +84,29 @@ function exactFnValue(name: FnName, arg: Expr): Expr | null {
   if (name === 'ln') {
     if (arg.kind === 'num' && isOneRat(arg.rat)) return num(0)
     if (arg.kind === 'sym' && arg.name === 'e') return num(1)
+    return null
+  }
+  // 反余弦：特殊值精确求值（数值匹配避免符号比对的复杂度），其余数值兜底
+  if (name === 'acos') {
+    const v = evalFloat(arg)
+    if (!Number.isFinite(v)) return null
+    // 特殊角表：acos 值 → (n/d)·π
+    const table: Array<[number, number, number]> = [
+      [1, 0, 1],
+      [-1, 1, 1],
+      [0, 1, 2],
+      [1 / 2, 1, 3],
+      [Math.SQRT2 / 2, 1, 4],
+      [Math.sqrt(3) / 2, 1, 6],
+      [-1 / 2, 2, 3],
+      [-Math.SQRT2 / 2, 3, 4],
+      [-Math.sqrt(3) / 2, 5, 6],
+    ]
+    for (const [target, n, d] of table) {
+      if (Math.abs(v - target) < 1e-9) {
+        return n === 0 ? num(0) : mul(sym('pi'), num(n, d))
+      }
+    }
     return null
   }
   // sin / cos / tan：参数须为 k·π

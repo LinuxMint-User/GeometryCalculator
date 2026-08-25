@@ -15,7 +15,7 @@ export interface Rat {
 
 export type Sign = 'positive' | 'nonnegative' | 'negative' | 'nonpositive' | 'nonzero' | 'real'
 
-export type FnName = 'sin' | 'cos' | 'tan' | 'exp' | 'ln'
+export type FnName = 'sin' | 'cos' | 'tan' | 'exp' | 'ln' | 'acos'
 
 export type Expr =
   | { kind: 'num'; rat: Rat }
