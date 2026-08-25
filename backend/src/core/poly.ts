@@ -8,6 +8,7 @@ import {
   addRat,
   divRat,
   extractSquare,
+  isOneRat,
   isZeroRat,
   mul,
   mulRat,
@@ -260,4 +261,176 @@ export function solvePoly(p: Poly): SolveResult {
   if (n === 1) return solveLinear(a, p[0]!)
   if (n === 2) return solveQuadratic(a, p[1]!, p[0]!)
   return { kind: 'unsupported' }
+}
+
+// ---------- 多项式长除 / GCD / 因式分解 ----------
+
+/** 多项式带余除法：a = q·b + r（系数为精确有理数）；b 为零多项式返回 null */
+export function polyDivMod(a: Poly, b: Poly): { q: Poly; r: Poly } | null {
+  a = norm(a)
+  b = norm(b)
+  if (b.length === 0) return null
+  let q: Poly = []
+  let r = a
+  const dB = polyDegree(b)
+  const lcB = b[dB]!
+  while (r.length > 0 && polyDegree(r) >= dB) {
+    const dR = polyDegree(r)
+    const k = divRat(r[dR]!, lcB)
+    const term: Poly = new Array(dR - dB + 1).fill(rat(0))
+    term[dR - dB] = k
+    q = polyAdd(q, term)
+    r = polySub(r, polyMul(term, b))
+  }
+  return { q: norm(q), r: norm(r) }
+}
+
+/** 化为首一多项式（除以最高次系数） */
+function monic(p: Poly): Poly {
+  if (p.length === 0) return p
+  const lc = p[p.length - 1]!
+  if (isOneRat(lc)) return p
+  const inv = divRat(rat(1), lc)
+  return norm(p.map((c) => mulRat(c, inv)))
+}
+
+/** 多项式的最大公因式（Euclidean 算法，首一化输出） */
+export function polyGcd(a: Poly, b: Poly): Poly {
+  let x = norm(a)
+  let y = norm(b)
+  while (y.length > 0) {
+    const d = polyDivMod(x, y)
+    if (d === null) break // 不会发生：y 非零
+    x = y
+    y = d.r
+  }
+  return x.length === 0 ? [] : monic(x)
+}
+
+function gcdBig(a: bigint, b: bigint): bigint {
+  a = a < 0n ? -a : a
+  b = b < 0n ? -b : b
+  while (b !== 0n) {
+    ;[a, b] = [b, a % b]
+  }
+  return a
+}
+
+/** 正整数 n 的全部正因子（不含 0） */
+function divisors(n: bigint): bigint[] {
+  n = n < 0n ? -n : n
+  const out: bigint[] = []
+  for (let d = 1n; d * d <= n; d++) {
+    if (n % d === 0n) {
+      out.push(d)
+      if (d !== n / d) out.push(n / d)
+    }
+  }
+  return out
+}
+
+/** 二次 a·x² + b·x + c（整数系数）是否可约成一次因子；不可约返回 null */
+function factorQuadratic(a: Rat, b: Rat, c: Rat): Poly[] | null {
+  const twoA = mulRat(rat(2), a)
+  const disc = subRat(mulRat(b, b), mulRat(rat(4), mulRat(a, c)))
+  if (disc.n < 0n) return null
+  if (isZeroRat(disc)) {
+    const r = divRat(negRat(b), twoA)
+    return [[negRat(r), rat(1)]]
+  }
+  const { coeff, radical } = sqrtRat(disc)
+  if (radical.d === 1n && isPerfectSquare(radical.n)) {
+    const s = mulRat(coeff, rat(isqrt(radical.n)))
+    const r1 = divRat(addRat(negRat(b), s), twoA)
+    const r2 = divRat(subRat(negRat(b), s), twoA)
+    return [[negRat(r1), rat(1)], [negRat(r2), rat(1)]]
+  }
+  return null
+}
+
+/** 从候选有理根里找第一个真正的根（polyEval 精确验证） */
+function findRationalRoot(p: Poly): Rat | null {
+  const deg = polyDegree(p)
+  const a0 = p[0]!
+  const an = p[deg]!
+  const candidates = new Set<string>()
+  for (const nf of divisors(a0.n)) {
+    for (const df of divisors(an.n)) {
+      const r: Rat = { n: nf, d: df }
+      candidates.add(`${r.n}/${r.d}`)
+      candidates.add(`${-r.n}/${r.d}`)
+    }
+  }
+  for (const key of candidates) {
+    const [n, d] = key.split('/').map(BigInt) as [bigint, bigint]
+    const r: Rat = { n, d }
+    if (isZeroRat(polyEval(p, r))) return r
+  }
+  return null
+}
+
+export interface PolyFactor {
+  poly: Poly
+  mult: number
+}
+
+/**
+ * 整数系数多项式的因式分解（有理数系数先提公因子再转整数）。
+ * 边界：次数 ≤ 4；用有理根定理提取一次因子，剩余二次按判别式判断可约性。
+ * 返回 content 与因子列表（乘积 = content · Π factor^mult）；超边界返回 null。
+ */
+export function factorPolyInt(p: Poly): { content: Rat; factors: PolyFactor[] } | null {
+  p = norm(p)
+  if (p.length === 0) return null
+  if (polyDegree(p) > 4) return null // 超出"整数系数 ≤ 4 次"边界
+
+  // 转整数系数：通分 + 提公因子（content 符号使首项为正）
+  let L = 1n
+  for (const c of p) L = (L / gcdBig(L, c.d)) * c.d // lcm 分母
+  const ints = p.map((c) => c.n * (L / c.d))
+  let g = 0n
+  for (const c of ints) g = g === 0n ? (c < 0n ? -c : c) : gcdBig(g, c)
+  if (g === 0n) return null
+  if (ints[ints.length - 1]! < 0n) g = -g // 首项取正
+  const content: Rat = { n: g, d: L }
+  const prim: Rat[] = ints.map((c) => ({ n: c / g, d: 1n }))
+
+  const factors: PolyFactor[] = []
+  let cur = norm(prim)
+
+  // 提 x（常数项为 0）
+  let zeroMult = 0
+  while (cur.length > 0 && isZeroRat(cur[0]!)) {
+    cur = cur.slice(1)
+    zeroMult++
+  }
+  if (zeroMult > 0) factors.push({ poly: [rat(0), rat(1)], mult: zeroMult })
+
+  // 循环提取一次因子
+  while (cur.length - 1 >= 1) {
+    if (cur.length - 1 === 1) break // 已是一次因子
+    let lin: Poly[]
+    if (cur.length - 1 === 2) {
+      const fq = factorQuadratic(cur[2]!, cur[1]!, cur[0]!)
+      if (fq === null) break // 不可约二次
+      lin = fq
+    } else {
+      const r = findRationalRoot(cur)
+      if (r === null) break // 三次/四次无有理根 → 保留（超能力边界）
+      lin = [[negRat(r), rat(1)]]
+    }
+    for (const f of lin) {
+      let mult = 0
+      while (true) {
+        const d = polyDivMod(cur, f)
+        if (d === null || d.r.length !== 0) break
+        cur = d.q
+        mult++
+      }
+      if (mult > 0) factors.push({ poly: norm(f), mult })
+    }
+  }
+  // 剩余非常数部分作为不可约因子（本原多项式剩余常数只能是 ±1，跳过）
+  if (cur.length > 1) factors.push({ poly: cur, mult: 1 })
+  return { content, factors }
 }

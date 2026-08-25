@@ -91,6 +91,57 @@ export function exprToFunction(e: Expr, varName: string): (x: number) => number 
   return go(e)
 }
 
+/** 多变量版：把关于 varNames 的表达式预编译为 F(xs)，xs[i] 对应 varNames[i] */
+export function exprToFunctionN(e: Expr, varNames: string[]): (xs: number[]) => number {
+  const go = (node: Expr): ((xs: number[]) => number) => {
+    switch (node.kind) {
+      case 'num': {
+        const v = ratToNumber(node.rat)
+        return () => v
+      }
+      case 'sym': {
+        const i = varNames.indexOf(node.name)
+        if (i >= 0) return (xs) => xs[i]!
+        return () => evalFloat(node) // e/pi/其他符号按常数求值，否则 NaN
+      }
+      case 'add': {
+        const fs = node.terms.map(go)
+        return (xs) => fs.reduce((s, f) => s + f(xs), 0)
+      }
+      case 'mul': {
+        const c = ratToNumber(node.coeff)
+        const fs = node.factors.map(go)
+        return (xs) => c * fs.reduce((s, f) => s * f(xs), 1)
+      }
+      case 'pow': {
+        const b = go(node.base)
+        const e = Number(node.exp.n) / Number(node.exp.d)
+        return (xs) => Math.pow(b(xs), e)
+      }
+      case 'sqrt': {
+        const a = go(node.arg)
+        return (xs) => Math.sqrt(a(xs))
+      }
+      case 'fn': {
+        const a = go(node.arg)
+        switch (node.name) {
+          case 'sin':
+            return (xs) => Math.sin(a(xs))
+          case 'cos':
+            return (xs) => Math.cos(a(xs))
+          case 'tan':
+            return (xs) => Math.tan(a(xs))
+          case 'exp':
+            return (xs) => Math.exp(a(xs))
+          case 'ln':
+            return (xs) => Math.log(a(xs))
+        }
+      }
+    }
+  }
+  return go(e)
+}
+
 // ---------- 一元求根 ----------
 
 /** 二分法求根：要求 f(a)·f(b) < 0 */

@@ -5,10 +5,13 @@ import { add, debugString, mul, rat, type Expr } from '../core/expr.js'
 import { latex } from '../core/latex.js'
 import { parse } from '../core/parse.js'
 import {
+  factorPolyInt,
   polyAdd,
+  polyDivMod,
   polyEq,
   polyEval,
   polyFromExpr,
+  polyGcd,
   polyMul,
   polyPow,
   polySub,
@@ -234,5 +237,84 @@ describe('根的表达一致性（add/mul 工厂配合）', () => {
     const prod = mul(roots[0]!, roots[1]!)
     expect(prod.kind).toBe('mul')
     expect(Math.abs(evalFloat(prod) - -1)).toBeLessThan(1e-9)
+  })
+})
+
+describe('多项式长除 polyDivMod', () => {
+  it('(x^2 - 1) / (x - 1) = x + 1 余 0', () => {
+    const d = polyDivMod(p('x^2 - 1'), p('x - 1'))
+    expect(d).not.toBeNull()
+    expect(polyToString(d!.q)).toBe('x + 1')
+    expect(d!.r.length).toBe(0)
+  })
+  it('(x^2 + 1) / (x - 1) = x + 1 余 2', () => {
+    const d = polyDivMod(p('x^2 + 1'), p('x - 1'))
+    expect(d).not.toBeNull()
+    expect(polyToString(d!.q)).toBe('x + 1')
+    expect(polyToString(d!.r)).toBe('2')
+  })
+  it('除以零多项式返回 null', () => {
+    expect(polyDivMod(p('x + 1'), [])).toBeNull()
+  })
+})
+
+describe('最大公因式 polyGcd', () => {
+  it('gcd(x^2 - 1, x^2 - 2x + 1) = x - 1', () => {
+    expect(polyToString(polyGcd(p('x^2 - 1'), p('x^2 - 2x + 1')))).toBe('x - 1')
+  })
+  it('gcd(x^2 + 1, x) = 1（互素）', () => {
+    expect(polyToString(polyGcd(p('x^2 + 1'), p('x')))).toBe('1')
+  })
+  it('gcd(x^3 - 1, x - 1) = x - 1', () => {
+    expect(polyToString(polyGcd(p('x^3 - 1'), p('x - 1')))).toBe('x - 1')
+  })
+  it('gcd 首一化：gcd(2x - 2, x^2 - 1) = x - 1', () => {
+    expect(polyToString(polyGcd(p('2x - 2'), p('x^2 - 1')))).toBe('x - 1')
+  })
+})
+
+describe('因式分解 factorPolyInt', () => {
+  it('x^2 - 1 = (x - 1)(x + 1)', () => {
+    const r = factorPolyInt(p('x^2 - 1'))!
+    expect(r.content).toEqual({ n: 1n, d: 1n })
+    expect(r.factors.map((f) => `${polyToString(f.poly)}^${f.mult}`)).toEqual(['x - 1^1', 'x + 1^1'])
+  })
+  it('x^2 - 2x + 1 = (x - 1)^2（重根）', () => {
+    const r = factorPolyInt(p('x^2 - 2x + 1'))!
+    expect(r.factors.map((f) => `${polyToString(f.poly)}^${f.mult}`)).toEqual(['x - 1^2'])
+  })
+  it('2x^2 - 2 = 2(x - 1)(x + 1)（content 提出）', () => {
+    const r = factorPolyInt(p('2x^2 - 2'))!
+    expect(r.content).toEqual({ n: 2n, d: 1n })
+    expect(r.factors.length).toBe(2)
+  })
+  it('x^3 - 1 = (x - 1)(x^2 + x + 1)（二次不可约保留）', () => {
+    const r = factorPolyInt(p('x^3 - 1'))!
+    expect(r.factors.map((f) => polyToString(f.poly))).toEqual(['x - 1', 'x^2 + x + 1'])
+  })
+  it('x^4 - 5x^2 + 4 = (x-1)(x+1)(x-2)(x+2)', () => {
+    const r = factorPolyInt(p('x^4 - 5x^2 + 4'))!
+    // 字符串排序下 '+' 排在 '-' 前
+    expect(r.factors.map((f) => polyToString(f.poly)).sort()).toEqual(['x + 1', 'x + 2', 'x - 1', 'x - 2'])
+  })
+  it('x^2 + 1 不可约（整数系数）', () => {
+    const r = factorPolyInt(p('x^2 + 1'))!
+    expect(r.factors.map((f) => polyToString(f.poly))).toEqual(['x^2 + 1'])
+  })
+  it('x^2 - 2 不可约（根无理）', () => {
+    const r = factorPolyInt(p('x^2 - 2'))!
+    expect(r.factors.map((f) => polyToString(f.poly))).toEqual(['x^2 - 2'])
+  })
+  it('x^3 - 1 提 x：x^3 + x = x(x^2 + 1)', () => {
+    const r = factorPolyInt(p('x^3 + x'))!
+    expect(r.factors.map((f) => `${polyToString(f.poly)}^${f.mult}`)).toEqual(['x^1', 'x^2 + 1^1'])
+  })
+  it('分数系数：x/2 - 1/2 = (1/2)(x - 1)', () => {
+    const r = factorPolyInt(p('x/2 - 1/2'))!
+    expect(r.content).toEqual({ n: 1n, d: 2n })
+    expect(r.factors.map((f) => polyToString(f.poly))).toEqual(['x - 1'])
+  })
+  it('次数 > 4 → null（超边界）', () => {
+    expect(factorPolyInt(p('x^5 - 1'))).toBeNull()
   })
 })

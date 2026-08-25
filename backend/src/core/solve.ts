@@ -24,7 +24,7 @@ import {
   type Rat,
 } from './expr.js'
 import { polyFromExpr, solvePoly, type SolveResult } from './poly.js'
-import { matchesSign } from './numeric.js'
+import { exprToFunctionN, evalFloat, matchesSign, multiNewton } from './numeric.js'
 import type { Sign } from './expr.js'
 
 const RAT0: Rat = { n: 0n, d: 1n }
@@ -329,6 +329,64 @@ export function solveSystem(eqs: Expr[], vars: string[], signs?: Map<string, Sig
 
   // 多个自由变量：需数值兜底（P4），符号层暂不支持
   return { kind: 'unsupported' }
+}
+
+// ---------- 数值兜底（黄灯区） ----------
+
+export interface NumericSolveOptions {
+  /** 初值列表（默认用确定性多初值，可找多个解） */
+  initial?: number[][]
+  tol?: number
+  maxIter?: number
+}
+
+export type NumericSolveResult =
+  | { kind: 'roots'; roots: Array<Map<string, number>> }
+  | { kind: 'failed' }
+
+/** 确定性多初值：原点 + 各坐标 ±1/±2/±5/±10 + 对角方向 */
+function defaultGuesses(n: number): number[][] {
+  const out: number[][] = []
+  const push = (g: number[]): void => {
+    const dup = out.some((p) => p.every((v, i) => v === g[i]))
+    if (!dup) out.push(g)
+  }
+  push(new Array(n).fill(0))
+  for (const mag of [1, 2, 5, 10]) {
+    for (const sign of [1, -1]) {
+      for (let i = 0; i < n; i++) {
+        const g = new Array(n).fill(0)
+        g[i] = sign * mag
+        push(g)
+      }
+      push(new Array(n).fill(sign * mag))
+    }
+  }
+  return out
+}
+
+/**
+ * 数值兜底求解（黄灯区）：方程组编译成数值函数后多维牛顿迭代。
+ * 多初值找多个解并去重；全部初值都不收敛返回 failed。
+ * 返回值标注为数值近似解，前端须与符号解区分展示。
+ */
+export function solveNumerically(eqs: Expr[], vars: string[], opts: NumericSolveOptions = {}): NumericSolveResult {
+  const n = vars.length
+  if (n === 0) return eqs.every((eq) => Math.abs(evalFloat(eq)) < 1e-9) ? { kind: 'roots', roots: [new Map()] } : { kind: 'failed' }
+  const F = (xs: number[]): number[] => eqs.map((eq) => exprToFunctionN(eq, vars)(xs))
+  const tol = opts.tol ?? 1e-8
+  const roots: Array<Map<string, number>> = []
+  for (const g of opts.initial ?? defaultGuesses(n)) {
+    const r = multiNewton(F, g, { tol, maxIter: opts.maxIter })
+    if (r === null) continue
+    const dup = roots.some((prev) => {
+      let d = 0
+      for (let i = 0; i < n; i++) d += Math.abs(prev.get(vars[i]!)! - r[i]!)
+      return d < 1e-6
+    })
+    if (!dup) roots.push(new Map(vars.map((v, i) => [v, r[i]!])))
+  }
+  return roots.length > 0 ? { kind: 'roots', roots } : { kind: 'failed' }
 }
 
 /** 符号假设筛根（P4）：丢弃任一变量不满足 sign 标签的解 */

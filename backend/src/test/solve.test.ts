@@ -3,7 +3,14 @@
 import { describe, expect, it } from 'vitest'
 import { debugString, type Sign } from '../core/expr.js'
 import { parse } from '../core/parse.js'
-import { solveSystem, substitute, toLinearEq, type SystemSolution, type SolveSystemResult } from '../core/solve.js'
+import {
+  solveNumerically,
+  solveSystem,
+  substitute,
+  toLinearEq,
+  type SystemSolution,
+  type SolveSystemResult,
+} from '../core/solve.js'
 
 const signs = (...pairs: Array<[string, Sign]>): Map<string, Sign> => new Map(pairs)
 
@@ -145,5 +152,45 @@ describe('边界情况', () => {
   })
   it('矛盾：x^2 + 2 = 0（无实数解）', () => {
     expect(sol(['x^2 + 2'], ['x']).kind).toBe('contradiction')
+  })
+})
+
+describe('数值兜底 solveNumerically（P4 黄灯区）', () => {
+  it('sqrt(x) - 2 → x ≈ 4（符号层 unsupported 后兜底）', () => {
+    const r = solveNumerically([parse('sqrt(x) - 2')], ['x'])
+    expect(r.kind).toBe('roots')
+    if (r.kind === 'roots') {
+      expect(r.roots.some((m) => Math.abs(m.get('x')! - 4) < 1e-6)).toBe(true)
+    }
+  })
+  it('x^3 - 2 → x ≈ ∛2（三次无公式法）', () => {
+    const r = solveNumerically([parse('x^3 - 2')], ['x'])
+    expect(r.kind).toBe('roots')
+    if (r.kind === 'roots') {
+      expect(r.roots.some((m) => Math.abs(m.get('x')! - Math.cbrt(2)) < 1e-6)).toBe(true)
+    }
+  })
+  it('x^2 + y^2 = 1, x = y → 两个解 ±(√2/2, √2/2)', () => {
+    const r = solveNumerically([parse('x^2 + y^2 - 1'), parse('x - y')], ['x', 'y'])
+    expect(r.kind).toBe('roots')
+    if (r.kind === 'roots') {
+      const s = Math.SQRT1_2
+      expect(r.roots.some((m) => Math.abs(m.get('x')! - s) < 1e-6 && Math.abs(m.get('y')! - s) < 1e-6)).toBe(true)
+      expect(r.roots.some((m) => Math.abs(m.get('x')! + s) < 1e-6 && Math.abs(m.get('y')! + s) < 1e-6)).toBe(true)
+    }
+  })
+  it('sin(x) - 1/2 → 找到 π/6 或 5π/6', () => {
+    const r = solveNumerically([parse('sin(x) - 1/2')], ['x'])
+    expect(r.kind).toBe('roots')
+    if (r.kind === 'roots') {
+      const ok = r.roots.some((m) => {
+        const x = m.get('x')!
+        return Math.abs(x - Math.PI / 6) < 1e-4 || Math.abs(x - (5 * Math.PI) / 6) < 1e-4
+      })
+      expect(ok).toBe(true)
+    }
+  })
+  it('无实数解（x^2 + 1）→ failed', () => {
+    expect(solveNumerically([parse('x^2 + 1')], ['x']).kind).toBe('failed')
   })
 })
