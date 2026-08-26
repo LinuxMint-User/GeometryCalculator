@@ -57,8 +57,12 @@ jobs:
       # AppImage 通病修复：linuxdeploy 默认把构建机的 libwayland-* 打进包，
       # 在 Mesa 25+ 的新发行版（如 Fedora 44）上，系统 Mesa EGL 被迫走打包的旧
       # libwayland → EGL_BAD_PARAMETER → WebKitWebProcess 崩溃（白屏）。
-      # 剥掉 libwayland-* 后重打包。参考 tauri-apps/tauri#15665。
-      - name: 修复 AppImage（剥离打包的 libwayland）
+      # 剥掉 libwayland-* 后用 appimagetool 重打包。
+      # 注意：不要用「旧 runtime + 新 squashfs 手动拼接」——旧 runtime 内置
+      # squashfuse 与 mksquashfs 4.6 新生成的 fs 不兼容，会在挂载阶段 SEGV
+      # （表现为 AppImage 启动即崩溃）。appimagetool 会重新生成匹配的 runtime。
+      # 参考 tauri-apps/tauri#15665。
+      - name: 修复 AppImage（剥离打包的 libwayland 并重打包）
         working-directory: src-tauri
         shell: bash
         run: |
@@ -68,14 +72,14 @@ jobs:
           # 提取 AppDir（AppImage 运行时自带解包，无需 FUSE）
           "$APPIMG" --appimage-extract >/dev/null
           rm -f squashfs-root/usr/lib/libwayland-*.so*
-          # AppImage type-2 头部：第 8 字节起为小端 u64，即 squashfs 偏移
-          OFFSET=$(od -An -tu8 -j8 -N8 "$APPIMG" | tr -d ' ')
-          head -c "$OFFSET" "$APPIMG" > runtime.bin
-          mksquashfs squashfs-root fixed.sfs -noappend -comp zstd -b 1048576 >/dev/null
-          cat runtime.bin fixed.sfs > "$APPIMG.tmp"
+          # appimagetool 本身也是 AppImage；runner 无 FUSE，用自解压模式运行
+          curl -fsSL -o appimagetool.AppImage https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool.AppImage
+          export APPIMAGE_EXTRACT_AND_RUN=1
+          ./appimagetool.AppImage squashfs-root "$APPIMG.tmp"
           chmod +x "$APPIMG.tmp"
           mv -f "$APPIMG.tmp" "$APPIMG"
-          rm -rf squashfs-root runtime.bin fixed.sfs
+          rm -rf squashfs-root appimagetool.AppImage
           echo "已重打包: $APPIMG（$(du -h "$APPIMG" | cut -f1)）"
 
       - name: 上传产物
