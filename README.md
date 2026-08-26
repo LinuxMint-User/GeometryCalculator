@@ -89,7 +89,7 @@ tauri android init                    # 首次生成 Android 工程（src-tauri/
 tauri android build --apk --debug     # 构建 debug APK
 ```
 
-APK 产物：`src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk`
+APK 产物：`src-tauri/gen/android/app/build/outputs/apk/universal/debug/geometry-calculator_2.5.0_universal-debug.apk`（文件名含应用名/版本/flavor）
 
 - 系统要求：Android 7.0（API 24）及以上
 - 架构：arm64-v8a / armeabi-v7a / x86 / x86_64 四路全打（universal APK）
@@ -97,7 +97,7 @@ APK 产物：`src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-un
 
 ### Gradle 9 兼容补丁（Android，记录于 2026-08-26）
 
-Tauri 官方生成的 Android 工程默认 Gradle 8.14.3，**最高只支持 Java 24**。若本机 JDK 为 25 或更高（例如较新的 Fedora 仅提供 25/26），需升级至 Gradle 9.5.1 并适配四处生成代码：
+Tauri 官方生成的 Android 工程默认 Gradle 8.14.3，**最高只支持 Java 24**。若本机 JDK 为 25 或更高（例如较新的 Fedora 仅提供 25/26），需升级至 Gradle 9.5.1 并适配五处生成代码：
 
 | # | 文件 | 改动 |
 |---|---|---|
@@ -105,6 +105,9 @@ Tauri 官方生成的 Android 工程默认 Gradle 8.14.3，**最高只支持 Jav
 | 2 | `gen/android/build.gradle.kts` | AGP 8.11.0 + KGP 2.3.20（Gradle 9 需 KGP 2.0.20+） |
 | 3 | `gen/android/app/build.gradle.kts` 与 cargo registry 内 tauri crate 的 `mobile/android/build.gradle.kts` | `kotlinOptions` → `kotlin.compilerOptions`（KGP 2.x 移除前者） |
 | 4 | `gen/android/buildSrc/.../BuildTask.kt` | `project.exec`（Gradle 9 已移除）→ `ExecOperations` 注入 + `@Inject` 构造 |
+| 5 | `gen/android/app/src/main/res/values/strings.xml`（+ 新增 `values-zh/`） | 应用名中英自适应：中文系统显示「几何计算器」，其余显示 `Geometry Calculator` |
+
+APK 产物文件名（`geometry-calculator_<版本>_<flavor>-<构建类型>.apk`）不是 Gradle 补丁：AGP 8 已移除在构建脚本里改 APK 文件名的 API，`build.sh` 与 CI 改为**构建完成后在产物目录内重命名**（见 `rename_android_apk`）。
 
 以上改动位于可重新生成的 `gen/` 与 cargo registry 内，**不进版本库**（`gen/` 被 .gitignore 忽略）。因此：
 

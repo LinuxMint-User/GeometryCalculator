@@ -310,7 +310,7 @@ desktop_build() { # desktop_build <debug|release> <bundle列表或all> <架构>
 # ---- Android 工程补丁（Gradle 9 兼容） ----------------------------------
 # 背景：Tauri 官方生成的 Android 工程默认 Gradle 8.14.3（最高支持 Java 24），
 # 在 JDK 25+ 环境（如较新的 Fedora 只有 25/26）下会崩。升级到 Gradle 9.x 后
-# 官方模板的部分写法已不兼容，需要以下四处适配。这些改动位于可重新生成的
+# 官方模板的部分写法已不兼容，需要以下五处适配。这些改动位于可重新生成的
 # gen/ 与 cargo registry 内，不进版本库，故构建前自动检测并重打。
 
 ensure_android_gen() { # gen/ 缺失时自动 tauri android init 重新生成
@@ -426,14 +426,14 @@ open class BuildTask @Inject constructor(private val execOperations: ExecOperati
 KT
 }
 
-apply_android_patches() { # 检测并重打全部四处补丁（幂等，可重复执行）
+apply_android_patches() { # 检测并重打全部五处补丁（幂等，可重复执行）
   ensure_android_gen || return 1
 
   local patched=0
 
   # 1) gradle wrapper：官方 Gradle 8.14.3 → 腾讯云镜像 Gradle 9.5.1
   if [ -f "$WRAPPER_PROPERTIES" ] && ! grep -q "gradle-${PATCH_GRADLE_VERSION}-bin.zip" "$WRAPPER_PROPERTIES"; then
-    info "补丁 1/4：Gradle wrapper → ${PATCH_GRADLE_VERSION}（腾讯云镜像）"
+    info "补丁 1/6：Gradle wrapper → ${PATCH_GRADLE_VERSION}（腾讯云镜像）"
     # 注意：properties 里 URL 冒号需转义（\:），sed 替换串要把 \ 翻倍成 \\ 才能原样写出
     sed -i "s#^distributionUrl=.*#distributionUrl=${PATCH_GRADLE_URL//\\/\\\\}#" "$WRAPPER_PROPERTIES"
     patched=$((patched+1))
@@ -441,53 +441,93 @@ apply_android_patches() { # 检测并重打全部四处补丁（幂等，可重�
 
   # 2) 根 build.gradle.kts：AGP + KGP 升级到兼容 Gradle 9 的版本
   if [ -f "$ROOT_BUILD_GRADLE" ] && ! grep -q "kotlin-gradle-plugin:${PATCH_KGP_VERSION}" "$ROOT_BUILD_GRADLE"; then
-    info "补丁 2/4：AGP ${PATCH_AGP_VERSION} + KGP ${PATCH_KGP_VERSION}"
+    info "补丁 2/6：AGP ${PATCH_AGP_VERSION} + KGP ${PATCH_KGP_VERSION}"
     sed -i "s#classpath(\"com.android.tools.build:gradle:[^\"]*\")#classpath(\"com.android.tools.build:gradle:${PATCH_AGP_VERSION}\")#; s#classpath(\"org.jetbrains.kotlin:kotlin-gradle-plugin:[^\"]*\")#classpath(\"org.jetbrains.kotlin:kotlin-gradle-plugin:${PATCH_KGP_VERSION}\")#" "$ROOT_BUILD_GRADLE"
     patched=$((patched+1))
   fi
 
   # 3) app/build.gradle.kts + crate build.gradle.kts：kotlinOptions → compilerOptions
   if [ -f "$APP_BUILD_GRADLE" ] && grep -q "kotlinOptions" "$APP_BUILD_GRADLE"; then
-    info "补丁 3/4：app/build.gradle.kts kotlinOptions → compilerOptions"
+    info "补丁 3/6：app/build.gradle.kts kotlinOptions → compilerOptions"
     patch_kotlin_options "$APP_BUILD_GRADLE"
     patched=$((patched+1))
   fi
   local crate_build; crate_build="$(find_tauri_crate_build)"
   if [ -n "$crate_build" ] && grep -q "kotlinOptions" "$crate_build"; then
-    info "补丁 3/4：tauri crate $crate_build kotlinOptions → compilerOptions"
+    info "补丁 3/6：tauri crate $crate_build kotlinOptions → compilerOptions"
     patch_kotlin_options "$crate_build"
     patched=$((patched+1))
   fi
 
   # 4) BuildTask.kt：project.exec（Gradle 9 已移除）→ ExecOperations 注入
   if [ -f "$BUILDTASK_FILE" ] && ! grep -q "ExecOperations" "$BUILDTASK_FILE"; then
-    info "补丁 4/4：BuildTask.kt 改用 ExecOperations 注入"
+    info "补丁 4/5：BuildTask.kt 改用 ExecOperations 注入"
     write_buildtask_patch
     patched=$((patched+1))
   fi
 
+  # 5) 应用名中英自适应：默认英文，中文系统显示「几何计算器」
+  local strings_file="$GEN_ANDROID_DIR/app/src/main/res/values/strings.xml"
+  if [ -f "$strings_file" ] && ! grep -q 'name="app_name">Geometry Calculator' "$strings_file"; then
+    info "补丁 5/5：应用名中英自适应（values + values-zh）"
+    mkdir -p "$GEN_ANDROID_DIR/app/src/main/res/values-zh"
+    cat > "$strings_file" <<'XML'
+<resources>
+    <string name="app_name">Geometry Calculator</string>
+    <string name="main_activity_title">Geometry Calculator</string>
+</resources>
+XML
+    cat > "$GEN_ANDROID_DIR/app/src/main/res/values-zh/strings.xml" <<'XML'
+<resources>
+    <string name="app_name">几何计算器</string>
+    <string name="main_activity_title">几何计算器</string>
+</resources>
+XML
+    patched=$((patched+1))
+  fi
+
   if [ "$patched" -gt 0 ]; then
-    ok "Gradle 9 兼容补丁已重新应用（$patched 处）"
+    ok "Android 工程补丁已重新应用（$patched 处）"
   else
-    info "Gradle 9 兼容补丁已就位，无需重打"
+    info "Android 工程补丁已就位，无需重打"
   fi
 }
 
 # ---- Android 构建 --------------------------------------------------------
+
+# 重命名 APK 产物：geometry-calculator_<版本>_<flavor>-<buildType>.apk
+# （AGP 8 已移除 Gradle 层改 APK 文件名的 API（新旧 Variant API 均无
+#   outputFileName），改为构建完成后在产物目录内重命名，可靠且不影响构建链路）
+rename_android_apk() { # rename_android_apk <apk目录> <flavor>
+  local dir="$1" flavor="$2" apk="" f
+  for f in "$dir"/*.apk; do [ -f "$f" ] && apk="$f" && break; done
+  [ -z "$apk" ] && { err "未找到 APK 产物：$dir"; return 1; }
+  local buildtype; buildtype="$(basename "$(dirname "$apk")")"
+  local version; version="$(get_version)"
+  local target="$dir/geometry-calculator_${version}_${flavor}-${buildtype}.apk"
+  if [ "$(basename "$apk")" = "$(basename "$target")" ]; then
+    info "APK 已命名：${target#"$GEN_ANDROID_DIR"/}"
+    return 0
+  fi
+  mv -f "$apk" "$target"
+  ok "APK 产物：${target#"$GEN_ANDROID_DIR"/}"
+}
+
 android_build() { # android_build <debug|release> <abi列表或universal>
   local mode="${1:-release}" abi="${2:-universal}"
   local mode_flag=() build_type
 
   if [ "$mode" = "debug" ]; then mode_flag=(--debug); build_type="Debug"; else build_type="Release"; fi
 
-  # 产物目录映射
+  # 产物目录映射（输出目录按 flavor 名命名：universal / arm64 / arm / x86 / x86_64）
   local apk_dir
   if [ "$abi" = "universal" ]; then
     apk_dir="$GEN_ANDROID_DIR/app/build/outputs/apk/universal/$(echo "$build_type" | tr '[:upper:]' '[:lower:]')"
   else
     local flavor="${ABI_FLAVOR_MAP[$abi]:-}"
     [ -z "$flavor" ] && { err "不支持的 ABI: $abi（可选: universal|arm64-v8a|armeabi-v7a|x86|x86_64）"; return 1; }
-    apk_dir="$GEN_ANDROID_DIR/app/build/outputs/apk/$abi/$(echo "$build_type" | tr '[:upper:]' '[:lower:]')"
+    local flavor_dir; flavor_dir="$(echo "$flavor" | tr '[:upper:]' '[:lower:]')"
+    apk_dir="$GEN_ANDROID_DIR/app/build/outputs/apk/$flavor_dir/$(echo "$build_type" | tr '[:upper:]' '[:lower:]')"
   fi
 
   # 前置检查 + 自动生成/重打 Gradle 9 兼容补丁
@@ -499,7 +539,7 @@ android_build() { # android_build <debug|release> <abi列表或universal>
   if [ "$abi" = "universal" ]; then
     # 官方链路：四 ABI 全打（由 RustPlugin 的 universal flavor 聚合）
     ( cd "$TAURI_DIR" && run tauri android build --apk "${mode_flag[@]}" )
-    ok "产物: $apk_dir/ 下的 app-universal-*.apk"
+    rename_android_apk "$apk_dir" universal
   else
     # 指定单 ABI：so 已由 universal 构建编译并链接进 jniLibs（tauri CLI 的
     # android build/dev 会自动做符号链接），这里仅用 gradle 组装 APK。
@@ -512,7 +552,7 @@ android_build() { # android_build <debug|release> <abi列表或universal>
     fi
     info "指定 ABI $abi（flavor $flavor），组装 Gradle 任务 assemble${flavor}${build_type}（排除 rust 任务）"
     ( cd "$GEN_ANDROID_DIR" && run ./gradlew "assemble${flavor}${build_type}" -x "rustBuild${flavor}${build_type}" )
-    ok "产物: $apk_dir/app-$abi-*.apk"
+    rename_android_apk "$apk_dir" "$abi"
   fi
   if [ "$mode" = "release" ]; then
     warn "release APK 未签名（unsigned），正式发布需配置签名（keystore）"

@@ -50,6 +50,12 @@ jobs:
         working-directory: src-tauri
         run: tauri android init
 
+      # 复用 build.sh 的补丁函数（Gradle 9 兼容 + 应用名中英自适应）
+      - name: 打 Android 工程补丁
+        run: |
+          source build.sh
+          apply_android_patches
+
       - name: 构建 universal debug APK（四 ABI 全打）
         working-directory: src-tauri
         run: tauri android build --apk --debug
@@ -66,6 +72,17 @@ jobs:
             assembleArmDebug -x rustBuildArmDebug \
             assembleX86Debug -x rustBuildX86Debug \
             assembleX86_64Debug -x rustBuildX86_64Debug
+
+      # AGP 8 无 Gradle 层改 APK 文件名的 API，统一在产物目录内重命名
+      # （<应用名>_<版本>_<flavor>-<buildType>.apk），与 build.sh 保持一致
+      - name: 重命名 APK 产物
+        run: |
+          source build.sh
+          rename_android_apk src-tauri/gen/android/app/build/outputs/apk/universal/debug universal
+          rename_android_apk src-tauri/gen/android/app/build/outputs/apk/arm64/debug arm64-v8a
+          rename_android_apk src-tauri/gen/android/app/build/outputs/apk/arm/debug armeabi-v7a
+          rename_android_apk src-tauri/gen/android/app/build/outputs/apk/x86/debug x86
+          rename_android_apk src-tauri/gen/android/app/build/outputs/apk/x86_64/debug x86_64
 
       - name: 上传产物
         uses: actions/upload-artifact@v4
