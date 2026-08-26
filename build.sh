@@ -784,15 +784,15 @@ tui_main() {
     show_list "请选择操作:" \
       "环境检查" "桌面端构建" "Android APK 构建" "全量构建（桌面 + Android）" \
       "清理构建产物" "版本管理" "帮助"
-    choice="$(read_choice "选择 [0-7]，q=退出: ")" || { printf '\n%s\n' "再见"; break; }
+    choice="$(read_choice "选择 [1-7]，q=退出: ")" || { printf '\n%s\n' "再见"; break; }
     case "$choice" in
-      0) check_env ;;
-      1) tui_desktop ;;
-      2) tui_android ;;
-      3) build_all release ;;
-      4) tui_clean ;;
-      5) tui_version ;;
-      6) usage ;;
+      1) check_env ;;
+      2) tui_desktop ;;
+      3) tui_android ;;
+      4) build_all release ;;
+      5) tui_clean ;;
+      6) tui_version ;;
+      7) usage ;;
       q|Q) printf '%s\n' "再见"; break ;;
       *) warn "无效选择: $choice" ;;
     esac
