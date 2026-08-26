@@ -92,28 +92,26 @@ jobs:
         with:
           node-version: 22
 
-      - name: 构建安装包（NSIS .exe）
+      - name: 构建并收集产物
         working-directory: src-tauri
         shell: bash
         run: |
-          echo "=== npx 拉取的 CLI 版本 ==="
+          echo "=== 1. CLI 版本 ==="
           npx --yes @tauri-apps/cli@^2 --version
-          echo "=== 开始构建 ==="
+          echo "=== 2. 构建前 target 状态 ==="
+          ls -la target 2>&1 | head -20 || true
+          echo "=== 3. 开始构建 ==="
           npx --yes @tauri-apps/cli@^2 build --bundles nsis
-          echo "=== 构建完成 ==="
-
-      - name: 收集产物到固定目录
-        working-directory: src-tauri
-        shell: bash
-        run: |
+          echo "=== 4. 构建后 target/release 状态 ==="
+          ls -laR target/release 2>&1 | head -80 || true
+          echo "=== 5. 全部 exe/msi ==="
+          find target -iname "*.exe" -o -iname "*.msi" 2>&1 | head -20 || true
+          echo "=== 6. 复制产物 ==="
           mkdir -p ../dist-win
           if ls target/release/bundle/nsis/*.exe >/dev/null 2>&1; then
             cp -v target/release/bundle/nsis/*.exe ../dist-win/
           else
-            echo "!!! 未找到 nsis 产物，target/release 目录结构如下："
-            ls -laR target/release 2>/dev/null | head -80
-            echo "!!! 全部 exe/msi："
-            find target -iname "*.exe" -o -iname "*.msi" 2>/dev/null | head -20
+            echo "!!! 未找到 nsis 产物（上方第 4/5 步可见 target 结构）"
             exit 1
           fi
 
