@@ -50,11 +50,12 @@ jobs:
         working-directory: src-tauri
         run: tauri android init
 
-      # 复用 build.sh 的补丁函数（Gradle 9 兼容 + 应用名中英自适应）
+      # 复用 build.sh：CI 走官方 Gradle 8.14.3 + JDK 21，无需 Gradle 9 兼容补丁，
+      # 只需「应用名中英自适应」一处（--app-name-only）
       - name: 打 Android 工程补丁
         run: |
           source build.sh
-          apply_android_patches
+          apply_android_patches --app-name-only
 
       - name: 构建 universal debug APK（四 ABI 全打）
         working-directory: src-tauri

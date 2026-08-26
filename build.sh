@@ -322,7 +322,9 @@ ensure_android_gen() { # gen/ 缺失时自动 tauri android init 重新生成
 }
 
 find_tauri_crate_build() { # 定位 cargo registry 里最新 tauri crate 的构建脚本
-  ls -t $CRATE_GRADLE_GLOB 2>/dev/null | head -1
+  # ls 无匹配时退出码 2，配合 set -e/pipefail 会直接终止脚本；首次构建
+  # （或 cargo update 前）registry 尚未下载 tauri crate，属正常情况，兜底返回空
+  ls -t $CRATE_GRADLE_GLOB 2>/dev/null | head -1 || true
 }
 
 # 把 kotlinOptions { jvmTarget = "1.8" } 转换为 kotlin.compilerOptions 写法
@@ -427,13 +429,18 @@ KT
 }
 
 apply_android_patches() { # 检测并重打全部五处补丁（幂等，可重复执行）
+  # 参数 --app-name-only：仅打「应用名中英」补丁。CI 走官方 Gradle 8.14.3 + JDK 21
+  # 流程，无需 Gradle 9 兼容补丁（1-4），且首次构建时 cargo registry 尚无 tauri crate。
+  local app_name_only=0
+  [ "${1:-}" = "--app-name-only" ] && app_name_only=1
   ensure_android_gen || return 1
 
   local patched=0
 
+  if [ "$app_name_only" = "0" ]; then
   # 1) gradle wrapper：官方 Gradle 8.14.3 → 腾讯云镜像 Gradle 9.5.1
   if [ -f "$WRAPPER_PROPERTIES" ] && ! grep -q "gradle-${PATCH_GRADLE_VERSION}-bin.zip" "$WRAPPER_PROPERTIES"; then
-    info "补丁 1/6：Gradle wrapper → ${PATCH_GRADLE_VERSION}（腾讯云镜像）"
+    info "补丁 1/5：Gradle wrapper → ${PATCH_GRADLE_VERSION}（腾讯云镜像）"
     # 注意：properties 里 URL 冒号需转义（\:），sed 替换串要把 \ 翻倍成 \\ 才能原样写出
     sed -i "s#^distributionUrl=.*#distributionUrl=${PATCH_GRADLE_URL//\\/\\\\}#" "$WRAPPER_PROPERTIES"
     patched=$((patched+1))
@@ -441,20 +448,20 @@ apply_android_patches() { # 检测并重打全部五处补丁（幂等，可重�
 
   # 2) 根 build.gradle.kts：AGP + KGP 升级到兼容 Gradle 9 的版本
   if [ -f "$ROOT_BUILD_GRADLE" ] && ! grep -q "kotlin-gradle-plugin:${PATCH_KGP_VERSION}" "$ROOT_BUILD_GRADLE"; then
-    info "补丁 2/6：AGP ${PATCH_AGP_VERSION} + KGP ${PATCH_KGP_VERSION}"
+    info "补丁 2/5：AGP ${PATCH_AGP_VERSION} + KGP ${PATCH_KGP_VERSION}"
     sed -i "s#classpath(\"com.android.tools.build:gradle:[^\"]*\")#classpath(\"com.android.tools.build:gradle:${PATCH_AGP_VERSION}\")#; s#classpath(\"org.jetbrains.kotlin:kotlin-gradle-plugin:[^\"]*\")#classpath(\"org.jetbrains.kotlin:kotlin-gradle-plugin:${PATCH_KGP_VERSION}\")#" "$ROOT_BUILD_GRADLE"
     patched=$((patched+1))
   fi
 
   # 3) app/build.gradle.kts + crate build.gradle.kts：kotlinOptions → compilerOptions
   if [ -f "$APP_BUILD_GRADLE" ] && grep -q "kotlinOptions" "$APP_BUILD_GRADLE"; then
-    info "补丁 3/6：app/build.gradle.kts kotlinOptions → compilerOptions"
+    info "补丁 3/5：app/build.gradle.kts kotlinOptions → compilerOptions"
     patch_kotlin_options "$APP_BUILD_GRADLE"
     patched=$((patched+1))
   fi
   local crate_build; crate_build="$(find_tauri_crate_build)"
   if [ -n "$crate_build" ] && grep -q "kotlinOptions" "$crate_build"; then
-    info "补丁 3/6：tauri crate $crate_build kotlinOptions → compilerOptions"
+    info "补丁 3/5：tauri crate $crate_build kotlinOptions → compilerOptions"
     patch_kotlin_options "$crate_build"
     patched=$((patched+1))
   fi
@@ -464,6 +471,7 @@ apply_android_patches() { # 检测并重打全部五处补丁（幂等，可重�
     info "补丁 4/5：BuildTask.kt 改用 ExecOperations 注入"
     write_buildtask_patch
     patched=$((patched+1))
+  fi
   fi
 
   # 5) 应用名中英自适应：默认英文，中文系统显示「几何计算器」
