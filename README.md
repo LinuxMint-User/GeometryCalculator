@@ -17,7 +17,7 @@
 ## 新增功能
 
 - 🖥️ Tauri 桌面壳：桌面端（Linux / Windows / macOS）以原生窗口运行
-- 🤖 Android 支持：可构建 APK（系统要求 Android 7.0+，支持 arm64-v8a / armeabi-v7a / x86 / x86_64）
+- 🤖 Android 支持：可构建 APK（系统要求 Android 9（API 28）及以上，支持 arm64-v8a / armeabi-v7a / x86 / x86_64）
 - 🧹 「重置计算器」一键清零（菜单 ☰ → 重置计算器）
 - 📐 角度函数 `acos`（如三角形角度求解），符号求解优先、数值求解兜底
 - 🔢 求解能力增强：符号解求不出时自动数值兜底（结果标注「近似」），不再空手而归
@@ -37,8 +37,8 @@
 
 - 桌面：Linux（deb/rpm/AppImage）、Windows（NSIS 安装版 + 便携单文件版）、macOS（dmg）
 - 安卓：universal 通吃包（四 ABI）+ 各单架构小包（arm64-v8a / armeabi-v7a / x86 / x86_64）
-- 手机安装 APK 需在系统设置中允许「未知来源」应用；系统要求 Android 7.0（API 24）及以上
-- WebView 内核：安装包内的前端已用 esbuild 降级到 Chrome 74 语法，Android 9 自带 WebView 即可正常运行；Android 7/8 自带 WebView 过旧（解析不了现代 JS），请在系统设置中更新「Android System WebView」后再试
+- 手机安装 APK 需在系统设置中允许「未知来源」应用；系统要求 Android 9（API 28）及以上
+- WebView 内核：安装包内的前端已用 esbuild 降级到 Chrome 74 语法，Android 9 及以上自带 WebView 即可正常运行；若设备 WebView 过旧可在系统设置中更新「Android System WebView」
 
 ### 浏览器预览（最轻量，无需 Tauri）
 
@@ -94,13 +94,13 @@ tauri android build --apk --debug     # 构建 debug APK
 
 APK 产物：`src-tauri/gen/android/app/build/outputs/apk/universal/debug/geometry-calculator_2.5.0_universal-debug.apk`（文件名含应用名/版本/flavor）
 
-- 系统要求：Android 7.0（API 24）及以上；WebView 内核要求同「下载安装包」说明（Android 9 自带可运行，Android 7/8 需更新 Android System WebView）
+- 系统要求：Android 9（API 28）及以上；WebView 内核要求同「下载安装包」说明
 - 架构：arm64-v8a / armeabi-v7a / x86 / x86_64 四路全打（universal APK）
 - 注意：`src-tauri/gen/android/` 内含 Gradle 9 兼容补丁，`build.sh clean deep` 会删除整个工程，非必要不要用 deep 清理（`build.sh` 会在下次 Android 构建时自动重建并重打补丁）
 
 ### Gradle 9 兼容补丁（Android，记录于 2026-08-26）
 
-Tauri 官方生成的 Android 工程默认 Gradle 8.14.3，**最高只支持 Java 24**。若本机 JDK 为 25 或更高（例如较新的 Fedora 仅提供 25/26），需升级至 Gradle 9.5.1 并适配五处生成代码：
+Tauri 官方生成的 Android 工程默认 Gradle 8.14.3，**最高只支持 Java 24**。若本机 JDK 为 25 或更高（例如较新的 Fedora 仅提供 25/26），需升级至 Gradle 9.5.1 并适配六处生成代码：
 
 | # | 文件 | 改动 |
 |---|---|---|
@@ -109,6 +109,7 @@ Tauri 官方生成的 Android 工程默认 Gradle 8.14.3，**最高只支持 Jav
 | 3 | `gen/android/app/build.gradle.kts` 与 cargo registry 内 tauri crate 的 `mobile/android/build.gradle.kts` | `kotlinOptions` → `kotlin.compilerOptions`（KGP 2.x 移除前者） |
 | 4 | `gen/android/buildSrc/.../BuildTask.kt` | `project.exec`（Gradle 9 已移除）→ `ExecOperations` 注入 + `@Inject` 构造 |
 | 5 | `gen/android/app/src/main/res/values/strings.xml`（+ 新增 `values-zh/`） | 应用名中英自适应：中文系统显示「几何计算器」，其余显示 `Geometry Calculator` |
+| 6 | `gen/android/app/build.gradle.kts` | `minSdk` 24 → 28（Android 9，自带 WebView 才能解析降级后的前端语法） |
 
 APK 产物文件名（`geometry-calculator_<版本>_<flavor>-<构建类型>.apk`）不是 Gradle 补丁：AGP 8 已移除在构建脚本里改 APK 文件名的 API，`build.sh` 与 CI 改为**构建完成后在产物目录内重命名**（见 `rename_android_apk`）。
 

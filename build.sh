@@ -459,7 +459,7 @@ KT
 apply_android_patches() { # 检测并重打补丁（幂等，可重复执行）
   # 参数 --ci：CI 专用模式（官方 Gradle 8.14.3 + JDK 21）。
   #   CI 跳过补丁 1-3（仅 Gradle 9 / JDK 25 环境需要），但应用补丁 4（project.exec
-  #   弃用 API，Gradle 8/9 通用）+ 补丁 5（应用名中英）。
+  #   弃用 API，Gradle 8/9 通用）+ 补丁 5（应用名中英）+ 补丁 6（minSdk 28）。
   local ci_mode=0
   [ "${1:-}" = "--ci" ] && ci_mode=1
   ensure_android_gen || return 1
@@ -469,7 +469,7 @@ apply_android_patches() { # 检测并重打补丁（幂等，可重复执行）
   if [ "$ci_mode" = "0" ]; then
   # 1) gradle wrapper：官方 Gradle 8.14.3 → 腾讯云镜像 Gradle 9.5.1
   if [ -f "$WRAPPER_PROPERTIES" ] && ! grep -q "gradle-${PATCH_GRADLE_VERSION}-bin.zip" "$WRAPPER_PROPERTIES"; then
-    info "补丁 1/5：Gradle wrapper → ${PATCH_GRADLE_VERSION}（腾讯云镜像）"
+    info "补丁 1/6：Gradle wrapper → ${PATCH_GRADLE_VERSION}（腾讯云镜像）"
     # 注意：properties 里 URL 冒号需转义（\:），sed 替换串要把 \ 翻倍成 \\ 才能原样写出
     sed -i "s#^distributionUrl=.*#distributionUrl=${PATCH_GRADLE_URL//\\/\\\\}#" "$WRAPPER_PROPERTIES"
     patched=$((patched+1))
@@ -477,20 +477,20 @@ apply_android_patches() { # 检测并重打补丁（幂等，可重复执行）
 
   # 2) 根 build.gradle.kts：AGP + KGP 升级到兼容 Gradle 9 的版本
   if [ -f "$ROOT_BUILD_GRADLE" ] && ! grep -q "kotlin-gradle-plugin:${PATCH_KGP_VERSION}" "$ROOT_BUILD_GRADLE"; then
-    info "补丁 2/5：AGP ${PATCH_AGP_VERSION} + KGP ${PATCH_KGP_VERSION}"
+    info "补丁 2/6：AGP ${PATCH_AGP_VERSION} + KGP ${PATCH_KGP_VERSION}"
     sed -i "s#classpath(\"com.android.tools.build:gradle:[^\"]*\")#classpath(\"com.android.tools.build:gradle:${PATCH_AGP_VERSION}\")#; s#classpath(\"org.jetbrains.kotlin:kotlin-gradle-plugin:[^\"]*\")#classpath(\"org.jetbrains.kotlin:kotlin-gradle-plugin:${PATCH_KGP_VERSION}\")#" "$ROOT_BUILD_GRADLE"
     patched=$((patched+1))
   fi
 
   # 3) app/build.gradle.kts + crate build.gradle.kts：kotlinOptions → compilerOptions
   if [ -f "$APP_BUILD_GRADLE" ] && grep -q "kotlinOptions" "$APP_BUILD_GRADLE"; then
-    info "补丁 3/5：app/build.gradle.kts kotlinOptions → compilerOptions"
+    info "补丁 3/6：app/build.gradle.kts kotlinOptions → compilerOptions"
     patch_kotlin_options "$APP_BUILD_GRADLE"
     patched=$((patched+1))
   fi
   local crate_build; crate_build="$(find_tauri_crate_build)"
   if [ -n "$crate_build" ] && grep -q "kotlinOptions" "$crate_build"; then
-    info "补丁 3/5：tauri crate $crate_build kotlinOptions → compilerOptions"
+    info "补丁 3/6：tauri crate $crate_build kotlinOptions → compilerOptions"
     patch_kotlin_options "$crate_build"
     patched=$((patched+1))
   fi
@@ -507,7 +507,7 @@ apply_android_patches() { # 检测并重打补丁（幂等，可重复执行）
   # 5) 应用名中英自适应：默认英文，中文系统显示「几何计算器」
   local strings_file="$GEN_ANDROID_DIR/app/src/main/res/values/strings.xml"
   if [ -f "$strings_file" ] && ! grep -q 'name="app_name">Geometry Calculator' "$strings_file"; then
-    info "补丁 5/5：应用名中英自适应（values + values-zh）"
+    info "补丁 5/6：应用名中英自适应（values + values-zh）"
     mkdir -p "$GEN_ANDROID_DIR/app/src/main/res/values-zh"
     cat > "$strings_file" <<'XML'
 <resources>
@@ -521,6 +521,14 @@ XML
     <string name="main_activity_title">几何计算器</string>
 </resources>
 XML
+    patched=$((patched+1))
+  fi
+
+  # 6) minSdk 24 → 28（Android 9）：自带 WebView 内核（Chrome 74）才能解析
+  #    前端 esbuild 降级后的语法，Android 7/8 系统 WebView 过旧无法使用
+  if [ -f "$APP_BUILD_GRADLE" ] && ! grep -q "minSdk = 28" "$APP_BUILD_GRADLE"; then
+    info "补丁 6/6：minSdk 24 → 28（Android 9，WebView 兼容）"
+    sed -i 's/minSdk = 24/minSdk = 28/' "$APP_BUILD_GRADLE"
     patched=$((patched+1))
   fi
 

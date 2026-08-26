@@ -58,7 +58,7 @@ jobs:
         run: tauri android init
 
       # 复用 build.sh：CI 走官方 Gradle 8.14.3 + JDK 21，--ci 模式跳过
-      # Gradle 9 兼容补丁（1-3），应用 BuildTask 弃用修复 + 应用名中英自适应
+      # Gradle 9 兼容补丁（1-3），应用 BuildTask 弃用修复 + 应用名中英 + minSdk 28
       - name: 打 Android 工程补丁
         run: |
           source build.sh
