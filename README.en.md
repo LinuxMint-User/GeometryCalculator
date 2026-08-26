@@ -106,7 +106,8 @@ The engine source, tests and browser build live in `backend/src/` (TypeScript); 
 
 Pushing a `v*` tag (e.g. `v2.5.0`) triggers [release.yml](.github/workflows/release.yml):
 
-- Builds desktop installers for all three platforms (Linux deb/rpm/AppImage, Windows NSIS .exe, macOS dmg) plus an Android universal APK
+- Builds desktop installers for all three platforms (Linux deb/rpm/AppImage, Windows NSIS installer, macOS dmg) plus an Android universal APK
+- Windows also ships a **portable single-file build** (`*-portable.exe`, no installation required; requires the WebView2 Runtime — preinstalled on Windows 11 and modern Windows 10, and the installer handles it automatically)
 - Attaches the artifacts (with SHA256 checksums) to a GitHub Release **draft** — the draft stays private until you review it and manually click "Publish"
 - Running it manually from the Actions tab only builds and keeps workflow artifacts; no Release is created
 

@@ -48,6 +48,16 @@ jobs:
             Get-ChildItem -Recurse target | Select-Object -First 40
             exit 1
           }
+          # 便携版：复制原始 exe（单文件免安装，需系统已装 WebView2 Runtime）
+          $rawExe = "target\release\geometry-calculator.exe"
+          if (Test-Path $rawExe) {
+            $setup = Get-ChildItem -Path target\release\bundle\nsis -Filter *-setup.exe | Select-Object -First 1
+            $portableName = if ($setup) { $setup.Name -replace '-setup\.exe$', '-portable.exe' } else { "geometry-calculator-portable.exe" }
+            Copy-Item $rawExe (Join-Path ..\dist-win $portableName) -Verbose
+          } else {
+            Write-Host "!!! 未找到原始 exe：$rawExe"
+            exit 1
+          }
 
       - name: 上传产物
         uses: actions/upload-artifact@v4
