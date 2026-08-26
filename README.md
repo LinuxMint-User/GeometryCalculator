@@ -31,6 +31,14 @@
 
 ## 运行方式（本分支）
 
+### 下载安装包（无需自行构建）
+
+最新发布产物在 [GitHub Releases](https://github.com/LinuxMint-User/GeometryCalculator/releases) 页面：
+
+- 桌面：Linux（deb/rpm/AppImage）、Windows（NSIS 安装版 + 便携单文件版）、macOS（dmg）
+- 安卓：universal 通吃包（四 ABI）+ 各单架构小包（arm64-v8a / armeabi-v7a / x86 / x86_64）
+- 手机安装 APK 需在系统设置中允许「未知来源」应用；系统要求 Android 7.0（API 24）及以上
+
 ### 浏览器预览（最轻量，无需 Tauri）
 
 ```bash
@@ -47,6 +55,8 @@ python3 -m http.server 9017 --directory frontend
 ```bash
 rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
 ```
+
+> 国内网络提示：首次构建需下载 tauri CLI、cargo 依赖与 Gradle 等，若下载缓慢或反复失败，可配置镜像源（cargo 用 rsproxy、Gradle 用腾讯云镜像），失败后重试通常可恢复；`./build.sh check` 可检查工具链完整性。
 
 ### 一键编译工具（推荐）
 

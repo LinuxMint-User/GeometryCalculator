@@ -31,6 +31,14 @@ This is a maintained fork of [zhdbk3/GeometryCalculator](https://github.com/zhdb
 
 ## How to Run (this fork)
 
+### Download a release (no build required)
+
+Latest release artifacts live on [GitHub Releases](https://github.com/LinuxMint-User/GeometryCalculator/releases):
+
+- Desktop: Linux (deb/rpm/AppImage), Windows (NSIS installer + portable single-file exe), macOS (dmg)
+- Android: universal APK (all four ABIs) plus per-ABI smaller APKs (arm64-v8a / armeabi-v7a / x86 / x86_64)
+- On Android you may need to allow "unknown sources" when installing the APK; Android 7.0 (API 24) or newer is required
+
 ### Browser preview (lightest, no Tauri needed)
 
 ```bash
@@ -47,6 +55,8 @@ building the Android APK additionally needs JDK 17+, Android SDK (with NDK), and
 ```bash
 rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
 ```
+
+> Network note: the first build downloads the tauri CLI, cargo dependencies and Gradle. If downloads are slow or keep failing (e.g. in mainland China), consider mirrors (rsproxy for cargo, Tencent Cloud for Gradle); a simple retry usually recovers. `./build.sh check` verifies the toolchain.
 
 ### One-click build tool (recommended)
 
