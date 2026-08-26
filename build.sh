@@ -428,16 +428,17 @@ open class BuildTask @Inject constructor(private val execOperations: ExecOperati
 KT
 }
 
-apply_android_patches() { # 检测并重打全部五处补丁（幂等，可重复执行）
-  # 参数 --app-name-only：仅打「应用名中英」补丁。CI 走官方 Gradle 8.14.3 + JDK 21
-  # 流程，无需 Gradle 9 兼容补丁（1-4），且首次构建时 cargo registry 尚无 tauri crate。
-  local app_name_only=0
-  [ "${1:-}" = "--app-name-only" ] && app_name_only=1
+apply_android_patches() { # 检测并重打补丁（幂等，可重复执行）
+  # 参数 --ci：CI 专用模式（官方 Gradle 8.14.3 + JDK 21）。
+  #   CI 跳过补丁 1-3（仅 Gradle 9 / JDK 25 环境需要），但应用补丁 4（project.exec
+  #   弃用 API，Gradle 8/9 通用）+ 补丁 5（应用名中英）。
+  local ci_mode=0
+  [ "${1:-}" = "--ci" ] && ci_mode=1
   ensure_android_gen || return 1
 
   local patched=0
 
-  if [ "$app_name_only" = "0" ]; then
+  if [ "$ci_mode" = "0" ]; then
   # 1) gradle wrapper：官方 Gradle 8.14.3 → 腾讯云镜像 Gradle 9.5.1
   if [ -f "$WRAPPER_PROPERTIES" ] && ! grep -q "gradle-${PATCH_GRADLE_VERSION}-bin.zip" "$WRAPPER_PROPERTIES"; then
     info "补丁 1/5：Gradle wrapper → ${PATCH_GRADLE_VERSION}（腾讯云镜像）"
@@ -465,13 +466,14 @@ apply_android_patches() { # 检测并重打全部五处补丁（幂等，可重�
     patch_kotlin_options "$crate_build"
     patched=$((patched+1))
   fi
+  fi
 
-  # 4) BuildTask.kt：project.exec（Gradle 9 已移除）→ ExecOperations 注入
+  # 4) BuildTask.kt：project.exec 自 Gradle 8 起标弃用（编译告警），Gradle 9 移除；
+  #    ExecOperations 注入两版通用，CI 一并应用以消除告警
   if [ -f "$BUILDTASK_FILE" ] && ! grep -q "ExecOperations" "$BUILDTASK_FILE"; then
     info "补丁 4/5：BuildTask.kt 改用 ExecOperations 注入"
     write_buildtask_patch
     patched=$((patched+1))
-  fi
   fi
 
   # 5) 应用名中英自适应：默认英文，中文系统显示「几何计算器」
