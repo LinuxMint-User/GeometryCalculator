@@ -100,18 +100,28 @@ jobs:
           npx --yes @tauri-apps/cli@^2 --version
           echo "=== 开始构建 ==="
           npx --yes @tauri-apps/cli@^2 build --bundles nsis
-          echo "=== 构建完成，产物检查 ==="
-          ls -la target 2>/dev/null || echo "target 目录不存在！"
-          echo "--- target/release ---"
-          ls -la target/release 2>/dev/null || echo "target/release 不存在！"
-          echo "--- 全部 exe/msi ---"
-          find . -iname "*.exe" -o -iname "*.msi" 2>/dev/null | head -20 || echo "无 exe/msi"
+          echo "=== 构建完成 ==="
+
+      - name: 收集产物到固定目录
+        working-directory: src-tauri
+        shell: bash
+        run: |
+          mkdir -p ../dist-win
+          if ls target/release/bundle/nsis/*.exe >/dev/null 2>&1; then
+            cp -v target/release/bundle/nsis/*.exe ../dist-win/
+          else
+            echo "!!! 未找到 nsis 产物，target/release 目录结构如下："
+            ls -laR target/release 2>/dev/null | head -80
+            echo "!!! 全部 exe/msi："
+            find target -iname "*.exe" -o -iname "*.msi" 2>/dev/null | head -20
+            exit 1
+          fi
 
       - name: 上传产物
         uses: actions/upload-artifact@v4
         with:
           name: windows
-          path: src-tauri/target/**/bundle/**
+          path: dist-win/
           if-no-files-found: error
 
   # ================= 桌面端：macOS =================
