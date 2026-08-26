@@ -7,6 +7,7 @@
 - Fix edge-to-edge layout on Android: the app bar now accounts for the status bar height and is no longer covered
 - Fix Chinese styling glitch in the Docs view: group labels ("Original docs" / "Maintainer docs") no longer wrap vertically on narrow screens
 - Theme and language now follow the system: until set manually, they track the system light/dark preference and system language in real time; manual choice sticks, and "Clear local preferences" restores system-following
+- New one-click build tool `build.sh`: interactive TUI menu plus command-line arguments, covering desktop/Android/full builds, custom architectures and bundle formats, artifact cleanup and version unification (`./build.sh help` for usage)
 
 ## v2.4.0
 

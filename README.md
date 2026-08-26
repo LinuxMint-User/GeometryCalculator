@@ -48,16 +48,31 @@ python3 -m http.server 9017 --directory frontend
 rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
 ```
 
-### 桌面端（Tauri 壳）
+### 一键编译工具（推荐）
+
+仓库根目录的 `build.sh` 提供 **TUI 交互式菜单**与**命令行参数**双模式：
+
+```bash
+./build.sh                        # 进入交互式菜单（环境检查/桌面/Android/全量/清理/版本管理）
+./build.sh check                  # 检查工具链环境（缺啥补啥）
+./build.sh desktop -b deb,rpm     # 桌面端，打包 deb + rpm
+./build.sh desktop --debug        # 桌面端 debug 构建
+./build.sh android --debug        # Android debug APK（universal 四 ABI）
+./build.sh android --abi arm64-v8a  # Android 仅 arm64-v8a
+./build.sh all                    # 全量构建（桌面 release + Android release）
+./build.sh clean all -y           # 清理全部构建产物（跳过确认）
+./build.sh version 2.6.0          # 统一版本号（tauri.conf/Cargo.toml/manifest 同步）
+./build.sh help                   # 完整帮助
+```
+
+命令选项：`-d/--debug`、`-r/--release`、`-b/--bundle deb|rpm|appimage|all`、`-a/--arch host|aarch64`、`--abi universal|arm64-v8a|armeabi-v7a|x86|x86_64`。
+
+### 手动命令（等价操作）
 
 ```bash
 tauri dev     # 开发模式（自动拉起前端静态服务，热重载），或 ./dev.sh
-tauri build   # 构建发布版安装包（产物在 src-tauri/target/release/bundle/）
-```
+tauri build   # 桌面发布版安装包（产物在 src-tauri/target/release/bundle/）
 
-### Android APK
-
-```bash
 tauri android init                    # 首次生成 Android 工程（src-tauri/gen/android/，可重新生成）
 tauri android build --apk --debug     # 构建 debug APK
 ```
@@ -66,6 +81,7 @@ APK 产物：`src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-un
 
 - 系统要求：Android 7.0（API 24）及以上
 - 架构：arm64-v8a / armeabi-v7a / x86 / x86_64 四路全打（universal APK）
+- 注意：`src-tauri/gen/android/` 内含 Gradle 9 兼容补丁，`build.sh clean deep` 会删除整个工程，需重新 `tauri android init` 并重打补丁，非必要不要用 deep 清理
 
 引擎源码、测试与浏览器编译见 `backend/src/`（TypeScript）；功能说明见页面内「文档」tab 的维护者《使用指南》《更新日志》。
 

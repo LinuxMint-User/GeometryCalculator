@@ -48,16 +48,31 @@ building the Android APK additionally needs JDK 17+, Android SDK (with NDK), and
 rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
 ```
 
-### Desktop (Tauri shell)
+### One-click build tool (recommended)
+
+`build.sh` at the repo root offers both an **interactive TUI menu** and **command-line arguments**:
+
+```bash
+./build.sh                        # enter the interactive menu (env check/desktop/Android/full build/clean/version)
+./build.sh check                  # check the toolchain (shows what is missing)
+./build.sh desktop -b deb,rpm     # desktop build, bundle deb + rpm
+./build.sh desktop --debug        # desktop debug build
+./build.sh android --debug        # Android debug APK (universal, all four ABIs)
+./build.sh android --abi arm64-v8a  # Android, arm64-v8a only
+./build.sh all                    # full build (desktop release + Android release)
+./build.sh clean all -y           # clean all build artifacts (skip confirmation)
+./build.sh version 2.6.0          # set a unified version (tauri.conf/Cargo.toml/manifest synced)
+./build.sh help                   # full help
+```
+
+Options: `-d/--debug`, `-r/--release`, `-b/--bundle deb|rpm|appimage|all`, `-a/--arch host|aarch64`, `--abi universal|arm64-v8a|armeabi-v7a|x86|x86_64`.
+
+### Manual commands (equivalent)
 
 ```bash
 tauri dev     # dev mode (starts the frontend static server automatically, hot reload), or ./dev.sh
 tauri build   # build release installers (output in src-tauri/target/release/bundle/)
-```
 
-### Android APK
-
-```bash
 tauri android init                    # generate the Android project once (src-tauri/gen/android/, regenerable)
 tauri android build --apk --debug     # build a debug APK
 ```
@@ -66,6 +81,7 @@ APK output: `src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-uni
 
 - Requirement: Android 7.0 (API 24) or later
 - Architectures: arm64-v8a / armeabi-v7a / x86 / x86_64 in one universal APK
+- Note: `src-tauri/gen/android/` contains Gradle 9 compatibility patches; `build.sh clean deep` deletes the whole project, which requires re-running `tauri android init` and re-applying the patches — avoid `deep` unless necessary
 
 The engine source, tests and browser build live in `backend/src/` (TypeScript); for usage details, see the maintainer User Guide / Changelog in the "Docs" tab.
 
