@@ -314,13 +314,12 @@ desktop_build() { # desktop_build <debug|release> <bundle列表或all> <架构>
   # 打包格式校验
   local bundle_args=()
   if [ "$bundles" = "all" ]; then
-    info "打包格式: 全部（deb/rpm/appimage）"
-    warn "AppImage 打包需从 GitHub 下载 linuxdeploy 插件，网络受限时可能卡住；失败可改用 -b deb,rpm"
+    info "打包格式: 全部（deb/rpm）"
   else
     IFS=',' read -ra bl <<< "$bundles"
     for b in "${bl[@]}"; do
-      case "$b" in deb|rpm|appimage) bundle_args+=(--bundles "$b") ;;
-        *) err "不支持的打包格式: $b（可选: deb|rpm|appimage|all）"; return 1 ;;
+      case "$b" in deb|rpm) bundle_args+=(--bundles "$b") ;;
+        *) err "不支持的打包格式: $b（可选: deb|rpm|all）"; return 1 ;;
       esac
     done
     info "打包格式: ${bl[*]}"
@@ -331,43 +330,11 @@ desktop_build() { # desktop_build <debug|release> <bundle列表或all> <架构>
 
   hdr "构建桌面端（${mode}，架构 $( [ "$arch" = "host" ] && echo "$(uname -m)" || echo "$arch" )）"
   frontend_build || return 1
+  # 不发布 AppImage：linuxdeploy 会把构建机的 GTK/WebKitGTK/libwayland 等打进包，
+  # 在新发行版（如 Fedora 44 / Mesa 26）上白屏、启动崩溃、输入卡死等问题反复；
+  # deb/rpm 用系统依赖库，兼容性稳定（参考 tauri-apps/tauri#15665）
   ( cd "$TAURI_DIR" && run tauri build "${mode_flag[@]}" "${bundle_args[@]}" "${tauri_arch[@]}" )
-  # AppImage 通病修复：剥离打包的 libwayland（新 Mesa 白屏崩溃），仅打包了
-  # appimage 时执行；逻辑与 CI（build-linux.yml）一致，详见 fix_appimage
-  if [ "$(uname -s)" = "Linux" ] && { [ "$bundles" = "all" ] || [[ ",$bundles," == *",appimage,"* ]]; }; then
-    fix_appimage "$mode" || return 1
-  fi
   ok "桌面端构建完成，产物在 src-tauri/target/$( [ "$mode" = debug ] && echo debug || echo release )/bundle/"
-}
-
-# ---- AppImage 通病修复 ---------------------------------------------------
-# linuxdeploy 默认把构建机的 libwayland-* 打进 AppImage，在新 Mesa 发行版上
-# （如 Fedora 44 的 Mesa 26）系统 EGL 被迫走打包的旧 libwayland → 白屏崩溃。
-# 剥掉 libwayland-* 后用 appimagetool 重打包：
-#   不要用「旧 runtime + 新 squashfs 手动拼接」——旧 runtime 内置 squashfuse
-#   与 mksquashfs 4.6 新生成的 fs 不兼容，会在挂载阶段 SEGV（启动即崩溃）。
-#   appimagetool 会重新生成与 fs 匹配的 runtime。参考 tauri-apps/tauri#15665。
-fix_appimage() { # fix_appimage <debug|release>
-  local mode="${1:-release}" appimg="" d
-  for d in "$TAURI_DIR/target/release/bundle/appimage" "$TAURI_DIR/target/debug/bundle/appimage"; do
-    appimg=$(ls "$d"/*.AppImage 2>/dev/null | head -1)
-    [ -n "$appimg" ] && break
-  done
-  [ -n "$appimg" ] || { info "未找到 AppImage 产物，跳过 libwayland 剥离修复"; return 0; }
-  info "修复 AppImage：剥离打包的 libwayland 并重打包（$appimg）"
-  run "$appimg" --appimage-extract
-  run rm -f "$TAURI_DIR/squashfs-root/usr/lib/libwayland-*.so*"
-  local tool="$TAURI_DIR/appimagetool.AppImage"
-  if [ ! -x "$tool" ]; then
-    warn "下载 appimagetool（GitHub，国内网络受限时可能较慢）"
-    run curl -fsSL -o "$tool" https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
-    run chmod +x "$tool"
-  fi
-  ( cd "$TAURI_DIR" && run env APPIMAGE_EXTRACT_AND_RUN=1 "$tool" squashfs-root "$appimg.tmp" )
-  run chmod +x "$appimg.tmp"
-  run mv -f "$appimg.tmp" "$appimg"
-  rm -rf "$TAURI_DIR/squashfs-root"
-  ok "AppImage 已重打包: $appimg（$(du -h "$appimg" | cut -f1)）"
 }
 
 # ---- Android 工程补丁（Gradle 9 兼容） ----------------------------------
@@ -751,10 +718,10 @@ tui_desktop() {
   local mode="release"; [ "$m" = "2" ] && mode="debug"
 
   hdr "打包格式（可多选，逗号分隔，all=全部）"
-  show_list "" "deb" "rpm" "appimage"
+  show_list "" "deb" "rpm"
   local b; b="$(read_choice "输入编号（如 1,2 或 all，回车=全部）: ")" || return 1
   [ -z "$b" ] && b="all"
-  local bundles; bundles="$(parse_multi "$b" deb rpm appimage | paste -sd, -)"
+  local bundles; bundles="$(parse_multi "$b" deb rpm | paste -sd, -)"
   [ -z "$bundles" ] && { err "未选择任何打包格式"; return 1; }
 
   hdr "目标架构"
@@ -850,7 +817,7 @@ usage() {
 命令选项:
   -d, --debug       调试构建（默认 release）
   -r, --release     发行构建
-  -b, --bundle F    桌面打包格式: deb|rpm|appimage|all（逗号分隔）
+  -b, --bundle F    桌面打包格式: deb|rpm|all（逗号分隔）
   -a, --arch A      桌面目标架构: host|aarch64（默认 host）
       --abi L       Android ABI: universal|arm64-v8a|armeabi-v7a|x86|x86_64（逗号分隔）
   -y, --yes         清理时跳过确认
@@ -859,7 +826,7 @@ usage() {
 示例:
   ./build.sh check
   ./build.sh desktop -b deb,rpm
-  ./build.sh desktop --debug -b appimage
+  ./build.sh desktop --debug -b rpm
   ./build.sh android --debug --abi arm64-v8a
   ./build.sh all -r
   ./build.sh clean all -y

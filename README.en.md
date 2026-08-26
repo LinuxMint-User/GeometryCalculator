@@ -35,7 +35,8 @@ This is a maintained fork of [zhdbk3/GeometryCalculator](https://github.com/zhdb
 
 Latest release artifacts live on [GitHub Releases](https://github.com/LinuxMint-User/GeometryCalculator/releases):
 
-- Desktop: Linux (deb/rpm/AppImage), Windows (NSIS installer + portable single-file exe), macOS (dmg; requires macOS 10.15 (Catalina) or later, and macOS 11 or later on Apple Silicon (M1 or newer))
+- Desktop: Linux (deb/rpm), Windows (NSIS installer + portable single-file exe), macOS (dmg; requires macOS 10.15 (Catalina) or later, and macOS 11 or later on Apple Silicon (M1 or newer))
+- No AppImage: AppImage bundles GTK/WebKitGTK and other dependencies into the package, which repeatedly causes compatibility issues on new distros (white screen, crash on startup, frozen input); deb and rpm use the system libraries and are stable (Ubuntu/Debian use deb, Fedora/openSUSE use rpm)
 - Android: universal APK (all four ABIs) plus per-ABI smaller APKs (arm64-v8a / armeabi-v7a / x86 / x86_64)
 - On Android you may need to allow "unknown sources" when installing the APK; Android 9 (API 28) or newer is required
 - WebView engine: the packaged frontend is transpiled with esbuild down to Chrome 74 syntax, so the stock WebView on Android 9 and newer runs it fine; if a device's WebView is outdated, update "Android System WebView" in system settings. macOS has no such issue — the app uses the system WKWebView (Safari engine), which is updated with macOS itself, so nothing needs to be installed or upgraded separately
@@ -76,7 +77,7 @@ rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-andro
 ./build.sh help                   # full help
 ```
 
-Options: `-d/--debug`, `-r/--release`, `-b/--bundle deb|rpm|appimage|all`, `-a/--arch host|aarch64`, `--abi universal|arm64-v8a|armeabi-v7a|x86|x86_64`.
+Options: `-d/--debug`, `-r/--release`, `-b/--bundle deb|rpm|all`, `-a/--arch host|aarch64`, `--abi universal|arm64-v8a|armeabi-v7a|x86|x86_64`.
 
 > Note: `--abi` per-ABI builds reuse the `.so` files already compiled and linked into jniLibs by a universal build (it only assembles the APK). Run `./build.sh android` (universal) once first if you never have.
 
@@ -126,7 +127,7 @@ The engine source, tests and browser build live in `backend/src/` (TypeScript); 
 
 Pushing a `v*` tag (e.g. `v2.5.0`) triggers [release.yml](.github/workflows/release.yml):
 
-- Builds desktop installers for all three platforms (Linux deb/rpm/AppImage, Windows NSIS installer, macOS dmg) plus an Android universal APK
+- Builds desktop installers for all three platforms (Linux deb/rpm, Windows NSIS installer, macOS dmg) plus an Android universal APK
 - Windows also ships a **portable single-file build** (`*-portable.exe`, no installation required; requires the WebView2 Runtime — preinstalled on Windows 11 and modern Windows 10, and the installer handles it automatically)
 - Android ships a **universal APK** (all four ABIs) plus **per-ABI smaller APKs** (`arm64-v8a` / `armeabi-v7a` / `x86` / `x86_64`) — modern phones can use the `arm64-v8a` build to save bandwidth and storage
 - Attaches the artifacts (with SHA256 checksums) to a GitHub Release **draft** — the draft stays private until you review it and manually click "Publish"

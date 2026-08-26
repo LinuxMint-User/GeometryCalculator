@@ -35,7 +35,8 @@
 
 最新发布产物在 [GitHub Releases](https://github.com/LinuxMint-User/GeometryCalculator/releases) 页面：
 
-- 桌面：Linux（deb/rpm/AppImage）、Windows（NSIS 安装版 + 便携单文件版）、macOS（dmg；系统要求 macOS 10.15（Catalina）及以上，Apple Silicon（M1 及更新）需 macOS 11 及以上）
+- 桌面：Linux（deb/rpm）、Windows（NSIS 安装版 + 便携单文件版）、macOS（dmg；系统要求 macOS 10.15（Catalina）及以上，Apple Silicon（M1 及更新）需 macOS 11 及以上）
+- 未发布 AppImage：AppImage 会自带打包 GTK/WebKitGTK 等依赖，在新发行版上兼容问题反复（白屏、启动崩溃、输入卡死）；deb 与 rpm 使用系统依赖库，兼容性稳定（Ubuntu/Debian 系用 deb，Fedora/openSUSE 等用 rpm）
 - 安卓：universal 通吃包（四 ABI）+ 各单架构小包（arm64-v8a / armeabi-v7a / x86 / x86_64）
 - 手机安装 APK 需在系统设置中允许「未知来源」应用；系统要求 Android 9（API 28）及以上
 - WebView 内核：安装包内的前端已用 esbuild 降级到 Chrome 74 语法，Android 9 及以上自带 WebView 即可正常运行；若设备 WebView 过旧可在系统设置中更新「Android System WebView」。macOS 无此问题——应用使用系统 WKWebView（Safari 内核），随 macOS 系统更新，无需单独安装或升级
@@ -76,7 +77,7 @@ rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-andro
 ./build.sh help                   # 完整帮助
 ```
 
-命令选项：`-d/--debug`、`-r/--release`、`-b/--bundle deb|rpm|appimage|all`、`-a/--arch host|aarch64`、`--abi universal|arm64-v8a|armeabi-v7a|x86|x86_64`。
+命令选项：`-d/--debug`、`-r/--release`、`-b/--bundle deb|rpm|all`、`-a/--arch host|aarch64`、`--abi universal|arm64-v8a|armeabi-v7a|x86|x86_64`。
 
 > 提示：`--abi` 单架构构建复用 universal 构建已编译并链接进 jniLibs 的 .so（仅组装 APK）。若从未跑过 universal，先执行一次 `./build.sh android`。
 
@@ -125,7 +126,7 @@ APK 产物文件名（`geometry-calculator_<版本>_<flavor>-<构建类型>.apk`
 
 推送 `v*` 标签（如 `v2.5.0`）触发 [release.yml](.github/workflows/release.yml)：
 
-- 自动构建三平台桌面安装包（Linux deb/rpm/AppImage、Windows NSIS 安装器、macOS dmg）与 Android universal APK
+- 自动构建三平台桌面安装包（Linux deb/rpm、Windows NSIS 安装器、macOS dmg）与 Android universal APK
 - Windows 额外附带**便携单文件版**（`*-portable.exe`，免安装、双击即用；需系统已装 WebView2 Runtime，Windows 11 与现代 Windows 10 已预装，安装版会自动处理）
 - Android 产出 **universal 通吃包**（四 ABI 全打）与**各单架构小包**（`arm64-v8a` / `armeabi-v7a` / `x86` / `x86_64`）——现代手机用 `arm64-v8a` 小包即可，按需下载省流量与存储
 - 产物（含 SHA256 校验和）自动挂到 GitHub Release **草稿**——草稿不公开，检查无误后手动点「发布」
