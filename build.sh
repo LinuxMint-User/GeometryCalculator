@@ -501,9 +501,17 @@ android_build() { # android_build <debug|release> <abi列表或universal>
     ( cd "$TAURI_DIR" && run tauri android build --apk "${mode_flag[@]}" )
     ok "产物: $apk_dir/ 下的 app-universal-*.apk"
   else
-    # 指定单 ABI：直接调 gradle 对应 flavor 任务
-    info "指定 ABI $abi（flavor $flavor），直接走 Gradle 任务 assemble${flavor}${build_type}"
-    ( cd "$GEN_ANDROID_DIR" && run ./gradlew "assemble${flavor}${build_type}" )
+    # 指定单 ABI：so 已由 universal 构建编译并链接进 jniLibs（tauri CLI 的
+    # android build/dev 会自动做符号链接），这里仅用 gradle 组装 APK。
+    # 注意必须排除 rust 任务（rustBuild*）：`tauri android android-studio-script`
+    # 需要 tauri CLI 进程当 WebSocket 服务端，脱离 CLI 直接跑 gradle 会 Connection refused。
+    local lib_so="$GEN_ANDROID_DIR/app/src/main/jniLibs/$abi/libgeometry_calculator_lib.so"
+    if [ ! -f "$lib_so" ]; then
+      err "缺少 $abi 的 .so（$lib_so）：请先执行 ./build.sh android（universal）编译并链接各 ABI"
+      return 1
+    fi
+    info "指定 ABI $abi（flavor $flavor），组装 Gradle 任务 assemble${flavor}${build_type}（排除 rust 任务）"
+    ( cd "$GEN_ANDROID_DIR" && run ./gradlew "assemble${flavor}${build_type}" -x "rustBuild${flavor}${build_type}" )
     ok "产物: $apk_dir/app-$abi-*.apk"
   fi
   if [ "$mode" = "release" ]; then

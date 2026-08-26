@@ -77,6 +77,8 @@ rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-andro
 
 命令选项：`-d/--debug`、`-r/--release`、`-b/--bundle deb|rpm|appimage|all`、`-a/--arch host|aarch64`、`--abi universal|arm64-v8a|armeabi-v7a|x86|x86_64`。
 
+> 提示：`--abi` 单架构构建复用 universal 构建已编译并链接进 jniLibs 的 .so（仅组装 APK）。若从未跑过 universal，先执行一次 `./build.sh android`。
+
 ### 手动命令（等价操作）
 
 ```bash

@@ -54,12 +54,18 @@ jobs:
         working-directory: src-tauri
         run: tauri android build --apk --debug
 
-      # 单架构小包：直接跑 Gradle flavor 任务，so 已由上一步交叉编译并缓存，仅组装 APK
+      # 单架构小包：只组装 APK，必须排除 rust 任务（rustBuild*）——
+      # `tauri android android-studio-script` 需要 tauri CLI 进程当 WebSocket 服务端，
+      # 脱离 CLI 直接跑 gradle 会 Connection refused；so 已由上一步 universal
+      # 构建编译并链接进 jniLibs，直接复用。
       - name: 构建单架构 debug APK（arm64-v8a / armeabi-v7a / x86 / x86_64）
         working-directory: src-tauri/gen/android
         shell: bash
         run: |
-          ./gradlew assembleArm64Debug assembleArmDebug assembleX86Debug assembleX86_64Debug
+          ./gradlew assembleArm64Debug -x rustBuildArm64Debug \
+            assembleArmDebug -x rustBuildArmDebug \
+            assembleX86Debug -x rustBuildX86Debug \
+            assembleX86_64Debug -x rustBuildX86_64Debug
 
       - name: 上传产物
         uses: actions/upload-artifact@v4

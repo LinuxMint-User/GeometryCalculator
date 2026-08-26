@@ -77,6 +77,8 @@ rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-andro
 
 Options: `-d/--debug`, `-r/--release`, `-b/--bundle deb|rpm|appimage|all`, `-a/--arch host|aarch64`, `--abi universal|arm64-v8a|armeabi-v7a|x86|x86_64`.
 
+> Note: `--abi` per-ABI builds reuse the `.so` files already compiled and linked into jniLibs by a universal build (it only assembles the APK). Run `./build.sh android` (universal) once first if you never have.
+
 ### Manual commands (equivalent)
 
 ```bash
