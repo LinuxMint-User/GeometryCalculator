@@ -43,17 +43,32 @@ jobs:
       - name: 安装 Android SDK（platform 36 + NDK）
         uses: android-actions/setup-android@v3
 
+      - name: 安装 tauri CLI（npm 全局安装，Gradle BuildTask 经 PATH 调用）
+        run: npm install -g @tauri-apps/cli@^2
+
       - name: 生成 Android 工程
         working-directory: src-tauri
-        run: npx --yes @tauri-apps/cli@^2 android init
+        run: tauri android init
 
-      - name: 构建 debug APK（universal，四 ABI 全打）
+      - name: 构建 universal debug APK（四 ABI 全打）
         working-directory: src-tauri
-        run: npx --yes @tauri-apps/cli@^2 android build --apk --debug
+        run: tauri android build --apk --debug
+
+      # 单架构小包：直接跑 Gradle flavor 任务，so 已由上一步交叉编译并缓存，仅组装 APK
+      - name: 构建单架构 debug APK（arm64-v8a / armeabi-v7a / x86 / x86_64）
+        working-directory: src-tauri/gen/android
+        shell: bash
+        run: |
+          ./gradlew assembleArm64Debug assembleArmDebug assembleX86Debug assembleX86_64Debug
 
       - name: 上传产物
         uses: actions/upload-artifact@v4
         with:
           name: android
-          path: src-tauri/gen/android/app/build/outputs/apk/universal/debug/*.apk
+          path: |
+            src-tauri/gen/android/app/build/outputs/apk/universal/debug/*.apk
+            src-tauri/gen/android/app/build/outputs/apk/arm64/debug/*.apk
+            src-tauri/gen/android/app/build/outputs/apk/arm/debug/*.apk
+            src-tauri/gen/android/app/build/outputs/apk/x86/debug/*.apk
+            src-tauri/gen/android/app/build/outputs/apk/x86_64/debug/*.apk
           if-no-files-found: error

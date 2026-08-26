@@ -108,6 +108,7 @@ Tauri 官方生成的 Android 工程默认 Gradle 8.14.3，**最高只支持 Jav
 
 - 自动构建三平台桌面安装包（Linux deb/rpm/AppImage、Windows NSIS 安装器、macOS dmg）与 Android universal APK
 - Windows 额外附带**便携单文件版**（`*-portable.exe`，免安装、双击即用；需系统已装 WebView2 Runtime，Windows 11 与现代 Windows 10 已预装，安装版会自动处理）
+- Android 产出 **universal 通吃包**（四 ABI 全打）与**各单架构小包**（`arm64-v8a` / `armeabi-v7a` / `x86` / `x86_64`）——现代手机用 `arm64-v8a` 小包即可，按需下载省流量与存储
 - 产物（含 SHA256 校验和）自动挂到 GitHub Release **草稿**——草稿不公开，检查无误后手动点「发布」
 - 在 Actions 面板手动触发则只构建并留存 workflow artifacts，不创建任何 Release
 
