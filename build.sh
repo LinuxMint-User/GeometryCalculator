@@ -206,6 +206,12 @@ check_env() {
     info "安装: cargo install tauri-cli --version \"^2\""
   fi
 
+  if [ -f "$FRONTEND_DIR/dist/js/main.js" ]; then
+    printf '%-28s %s\n' "前端构建产物 (dist)" "$(ok ✓ 已构建)"
+  else
+    printf '%-28s %s\n' "前端构建产物 (dist)" "$(warn ○ 未构建（构建时自动执行 npm run build）)"
+  fi
+
   # 桌面交叉编译工具链（可选）
   local host_arch="$(uname -m)"
   if [ "$host_arch" = "x86_64" ] && command -v aarch64-linux-gnu-gcc >/dev/null 2>&1; then
@@ -260,6 +266,27 @@ check_env() {
   return "$rc"
 }
 
+# ---- 前端构建（esbuild 转译，兼容旧 WebView） ------------------------------
+# 前端源码使用 ?. / ?? 等 Chrome 80 语法，老 WebView（Android 7-9 自带内核）
+# 解析失败 → 界面可显示但完全无交互。这里用 esbuild 打包为单个 ESM 并降级到
+# Chrome 74 语法（含 Array.prototype.at 等运行时垫片），输出 frontend/dist/，
+# tauri 的 frontendDist 已指向该目录（桌面与 Android 均使用）。
+frontend_build() { # 构建前端（幂等；依赖缺失时自动安装）
+  require_cmd node '构建前端需 Node.js（npm）' || return 1
+  require_cmd npm '构建前端需 npm（随 Node.js 安装）' || return 1
+  if [ ! -d "$FRONTEND_DIR/node_modules" ]; then
+    if [ -f "$FRONTEND_DIR/package-lock.json" ]; then
+      info "前端依赖未安装，执行 npm ci"
+      ( cd "$FRONTEND_DIR" && run npm ci )
+    else
+      info "前端依赖未安装，执行 npm install"
+      ( cd "$FRONTEND_DIR" && run npm install )
+    fi
+  fi
+  hdr "构建前端（esbuild 转译 → frontend/dist/）"
+  ( cd "$FRONTEND_DIR" && run npm run build )
+}
+
 # ---- 桌面端构建 ----------------------------------------------------------
 desktop_build() { # desktop_build <debug|release> <bundle列表或all> <架构>
   local mode="${1:-release}" bundles="${2:-all}" arch="${3:-host}"
@@ -303,6 +330,7 @@ desktop_build() { # desktop_build <debug|release> <bundle列表或all> <架构>
   if [ "$mode" = "debug" ]; then mode_flag=(--debug); fi
 
   hdr "构建桌面端（${mode}，架构 $( [ "$arch" = "host" ] && echo "$(uname -m)" || echo "$arch" )）"
+  frontend_build || return 1
   ( cd "$TAURI_DIR" && run tauri build "${mode_flag[@]}" "${bundle_args[@]}" "${tauri_arch[@]}" )
   ok "桌面端构建完成，产物在 src-tauri/target/$( [ "$mode" = debug ] && echo debug || echo release )/bundle/"
 }
@@ -544,6 +572,7 @@ android_build() { # android_build <debug|release> <abi列表或universal>
   require_cmd tauri '安装: cargo install tauri-cli --version "^2"' || return 1
   require_cmd node '构建 Android 需 node（Gradle rust 插件执行入口）' || return 1
   apply_android_patches || return 1
+  frontend_build || return 1
 
   hdr "构建 Android APK（${mode}，ABI: $abi）"
   if [ "$abi" = "universal" ]; then
@@ -604,27 +633,27 @@ clean_build() { # clean_build <desktop|android|all|deep> [yes]
       rm -rf "$GEN_ANDROID_DIR/app/build"; ok "已删除 Android 构建产物"
       ;;
     all)
-      hdr "清理全部构建产物（桌面 + Android）"
+      hdr "清理全部构建产物（桌面 + Android + 前端）"
       local total=0
-      for d in "$TAURI_DIR/target" "$GEN_ANDROID_DIR/app/build"; do
+      for d in "$TAURI_DIR/target" "$GEN_ANDROID_DIR/app/build" "$FRONTEND_DIR/dist"; do
         [ -d "$d" ] && du -sh "$d"
       done
       confirm || { info "已取消"; return 0; }
-      rm -rf "$TAURI_DIR/target" "$GEN_ANDROID_DIR/app/build"
-      ok "已删除桌面与 Android 构建产物"
+      rm -rf "$TAURI_DIR/target" "$GEN_ANDROID_DIR/app/build" "$FRONTEND_DIR/dist"
+      ok "已删除桌面、Android 与前端构建产物"
       ;;
     deep)
-      hdr "彻底清理（含 Android 工程 gen/）"
+      hdr "彻底清理（含 Android 工程 gen/ 与前端依赖）"
       warn "删除 gen/ 后，下次 Android 构建需重新 tauri android init，"
       warn "且需重打 Gradle 9 兼容补丁（buildSrc/BuildTask.kt 等）！请谨慎。"
       local total=0
-      for d in "$TAURI_DIR/target" "$GEN_ANDROID_DIR/app/build" "$GEN_DIR"; do
+      for d in "$TAURI_DIR/target" "$GEN_ANDROID_DIR/app/build" "$GEN_DIR" "$FRONTEND_DIR/dist" "$FRONTEND_DIR/node_modules"; do
         [ -d "$d" ] && du -sh "$d"
       done
       confirm || { info "已取消"; return 0; }
-      rm -rf "$TAURI_DIR/target" "$GEN_ANDROID_DIR/app/build"
+      rm -rf "$TAURI_DIR/target" "$GEN_ANDROID_DIR/app/build" "$FRONTEND_DIR/dist" "$FRONTEND_DIR/node_modules"
       [ -n "$(ls -A "$GEN_ANDROID_DIR" 2>/dev/null)" ] && rm -rf "$GEN_DIR"
-      ok "已彻底清理（下次 Android 构建需重新生成工程并重打补丁）"
+      ok "已彻底清理（下次 Android 构建需重新生成工程并重打补丁，前端依赖需重新 npm install）"
       ;;
     *)
       err "未知清理目标: $target（可选: desktop|android|all|deep）"; return 1

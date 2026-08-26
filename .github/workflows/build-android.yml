@@ -46,6 +46,13 @@ jobs:
       - name: 安装 tauri CLI（npm 全局安装，Gradle BuildTask 经 PATH 调用）
         run: npm install -g @tauri-apps/cli@^2
 
+      # 前端需先构建：esbuild 打包并降级到 Chrome 74 语法（Android 9 自带 WebView
+      # 内核，否则 ?. / ?? 等语法解析失败 → 界面可显示但无交互），
+      # 产物在 frontend/dist/（tauri frontendDist 已指向该目录）
+      - name: 构建前端（esbuild 转译）
+        working-directory: frontend
+        run: npm ci && npm run build
+
       - name: 生成 Android 工程
         working-directory: src-tauri
         run: tauri android init

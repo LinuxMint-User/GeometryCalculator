@@ -29,6 +29,12 @@ jobs:
         with:
           node-version: 22
 
+      # 前端需先构建：esbuild 打包并降级到 Chrome 74 语法（Android 9 自带 WebView
+      # 内核），产物在 frontend/dist/（tauri frontendDist 已指向该目录）
+      - name: 构建前端（esbuild 转译）
+        working-directory: frontend
+        run: npm ci && npm run build
+
       - name: 构建安装包（app / dmg）
         working-directory: src-tauri
         run: npx --yes @tauri-apps/cli@^2 build --bundles app,dmg

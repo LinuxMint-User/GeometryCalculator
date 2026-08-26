@@ -29,6 +29,12 @@ jobs:
         with:
           node-version: 22
 
+      # 前端需先构建：esbuild 打包并降级到 Chrome 74 语法（Android 9 自带 WebView
+      # 内核），产物在 frontend/dist/（tauri frontendDist 已指向该目录）
+      - name: 构建前端（esbuild 转译）
+        working-directory: frontend
+        run: npm ci && npm run build
+
       # 注意：Git Bash 下 npx 会静默失败（无输出且退出码 0，cargo 从不执行），
       # 必须用 PowerShell（shell: pwsh）+ npm 全局安装后直接调 tauri。
       - name: 构建安装包（NSIS .exe）

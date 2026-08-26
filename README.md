@@ -38,6 +38,7 @@
 - 桌面：Linux（deb/rpm/AppImage）、Windows（NSIS 安装版 + 便携单文件版）、macOS（dmg）
 - 安卓：universal 通吃包（四 ABI）+ 各单架构小包（arm64-v8a / armeabi-v7a / x86 / x86_64）
 - 手机安装 APK 需在系统设置中允许「未知来源」应用；系统要求 Android 7.0（API 24）及以上
+- WebView 内核：安装包内的前端已用 esbuild 降级到 Chrome 74 语法，Android 9 自带 WebView 即可正常运行；Android 7/8 自带 WebView 过旧（解析不了现代 JS），请在系统设置中更新「Android System WebView」后再试
 
 ### 浏览器预览（最轻量，无需 Tauri）
 
@@ -49,7 +50,7 @@ python3 -m http.server 9017 --directory frontend
 
 ## 构建与打包
 
-前置依赖：Rust 工具链（rustup）、[Tauri 2 CLI](https://v2.tauri.app/start/cli/)（`cargo install tauri-cli --version "^2"`）；
+前置依赖：Node.js 18+（含 npm，用于前端 esbuild 构建）、Rust 工具链（rustup）、[Tauri 2 CLI](https://v2.tauri.app/start/cli/)（`cargo install tauri-cli --version "^2"`）；
 构建 Android APK 另需 JDK 17+、Android SDK（含 NDK），并添加交叉编译目标：
 
 ```bash
@@ -83,6 +84,8 @@ rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-andro
 
 ```bash
 tauri dev     # 开发模式（自动拉起前端静态服务，热重载），或 ./dev.sh
+# 手动构建前需先构建前端（esbuild 转译到 frontend/dist/；build.sh / CI 会自动执行）：
+cd frontend && npm ci && npm run build && cd ..
 tauri build   # 桌面发布版安装包（产物在 src-tauri/target/release/bundle/）
 
 tauri android init                    # 首次生成 Android 工程（src-tauri/gen/android/，可重新生成）
@@ -91,7 +94,7 @@ tauri android build --apk --debug     # 构建 debug APK
 
 APK 产物：`src-tauri/gen/android/app/build/outputs/apk/universal/debug/geometry-calculator_2.5.0_universal-debug.apk`（文件名含应用名/版本/flavor）
 
-- 系统要求：Android 7.0（API 24）及以上
+- 系统要求：Android 7.0（API 24）及以上；WebView 内核要求同「下载安装包」说明（Android 9 自带可运行，Android 7/8 需更新 Android System WebView）
 - 架构：arm64-v8a / armeabi-v7a / x86 / x86_64 四路全打（universal APK）
 - 注意：`src-tauri/gen/android/` 内含 Gradle 9 兼容补丁，`build.sh clean deep` 会删除整个工程，非必要不要用 deep 清理（`build.sh` 会在下次 Android 构建时自动重建并重打补丁）
 

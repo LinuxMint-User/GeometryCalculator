@@ -38,6 +38,7 @@ Latest release artifacts live on [GitHub Releases](https://github.com/LinuxMint-
 - Desktop: Linux (deb/rpm/AppImage), Windows (NSIS installer + portable single-file exe), macOS (dmg)
 - Android: universal APK (all four ABIs) plus per-ABI smaller APKs (arm64-v8a / armeabi-v7a / x86 / x86_64)
 - On Android you may need to allow "unknown sources" when installing the APK; Android 7.0 (API 24) or newer is required
+- WebView engine: the packaged frontend is transpiled with esbuild down to Chrome 74 syntax, so the stock WebView on Android 9 runs it fine; Android 7/8 stock WebViews are too old (they cannot parse modern JS) — update "Android System WebView" in system settings first
 
 ### Browser preview (lightest, no Tauri needed)
 
@@ -49,7 +50,7 @@ Then open <http://localhost:9017/> in your browser.
 
 ## Build & Package
 
-Prerequisites: Rust toolchain (rustup), [Tauri 2 CLI](https://v2.tauri.app/start/cli/) (`cargo install tauri-cli --version "^2"`);
+Prerequisites: Node.js 18+ (with npm, used for the esbuild frontend build), Rust toolchain (rustup), [Tauri 2 CLI](https://v2.tauri.app/start/cli/) (`cargo install tauri-cli --version "^2"`);
 building the Android APK additionally needs JDK 17+, Android SDK (with NDK), and the cross-compile targets:
 
 ```bash
@@ -83,15 +84,18 @@ Options: `-d/--debug`, `-r/--release`, `-b/--bundle deb|rpm|appimage|all`, `-a/-
 
 ```bash
 tauri dev     # dev mode (starts the frontend static server automatically, hot reload), or ./dev.sh
+# Before a manual build, build the frontend first (esbuild transpiles to frontend/dist/;
+# build.sh / CI does this automatically):
+cd frontend && npm ci && npm run build && cd ..
 tauri build   # build release installers (output in src-tauri/target/release/bundle/)
 
 tauri android init                    # generate the Android project once (src-tauri/gen/android/, regenerable)
 tauri android build --apk --debug     # build a debug APK
 ```
 
-APK output: `src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk`
+APK output: `src-tauri/gen/android/app/build/outputs/apk/universal/debug/geometry-calculator_2.5.0_universal-debug.apk`
 
-- Requirement: Android 7.0 (API 24) or later
+- Requirement: Android 7.0 (API 24) or later; WebView requirement as described under "Download a release" (stock WebView on Android 9 works, Android 7/8 needs an updated Android System WebView)
 - Architectures: arm64-v8a / armeabi-v7a / x86 / x86_64 in one universal APK
 - Note: `src-tauri/gen/android/` contains Gradle 9 compatibility patches; `build.sh clean deep` deletes the whole project — avoid `deep` unless necessary (`build.sh` regenerates the project and re-applies the patches automatically on the next Android build)
 

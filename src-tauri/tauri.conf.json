@@ -4,7 +4,7 @@
   "version": "2.5.0",
   "identifier": "io.github.linuxmintuser.geometrycalculator",
   "build": {
-    "frontendDist": "../frontend",
+    "frontendDist": "../frontend/dist",
     "devUrl": "http://localhost:9019",
     "beforeDevCommand": "python3 -m http.server 9019 --directory \"$(git rev-parse --show-toplevel)/frontend\"",
     "beforeBuildCommand": ""

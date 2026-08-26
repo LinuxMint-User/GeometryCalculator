@@ -9,6 +9,9 @@ Thumbs.db
 # Node 依赖
 node_modules/
 
+# 前端 esbuild 构建产物（npm run build 生成，可重新生成）
+frontend/dist/
+
 # Tauri 壳工程编译产物（可重新生成）
 src-tauri/target/
 src-tauri/gen/
