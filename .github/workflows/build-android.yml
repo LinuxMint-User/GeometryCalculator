@@ -17,15 +17,15 @@ jobs:
     name: Android APK
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: 安装 Node（Gradle rust 插件执行入口需要）
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
 
       - name: 安装 JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
@@ -41,7 +41,7 @@ jobs:
           workspaces: src-tauri
 
       - name: 安装 Android SDK（platform 36 + NDK）
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: 安装 tauri CLI（npm 全局安装，Gradle BuildTask 经 PATH 调用）
         run: npm install -g @tauri-apps/cli@^2
@@ -86,7 +86,7 @@ jobs:
           rename_android_apk src-tauri/gen/android/app/build/outputs/apk/x86_64/debug x86_64
 
       - name: 上传产物
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: android
           path: |
