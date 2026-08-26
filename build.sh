@@ -12,7 +12,7 @@
 #   - Android APK 构建（debug/release、指定 ABI）
 #   - 全量构建（桌面 + Android）
 #   - 构建产物清理（含「彻底清理」需确认）
-#   - 版本管理（读取 / 设置，同步 tauri.conf.json / Cargo.toml / manifest.json）
+#   - 版本管理（读取 / 设置，同步 tauri.conf.json / Cargo.toml / Cargo.lock / manifest.json / package.json）
 #
 # 环境：Linux/macOS（Windows 请用 WSL 或 PowerShell 脚本）
 # =============================================================================
@@ -29,6 +29,7 @@ MANIFEST="$FRONTEND_DIR/doc/manifest.json"
 TAURI_CONF="$TAURI_DIR/tauri.conf.json"
 CARGO_TOML="$TAURI_DIR/Cargo.toml"
 CARGO_LOCK="$TAURI_DIR/Cargo.lock"
+PKG_JSON="$TAURI_DIR/package.json"
 
 # Android 工程内的补丁目标文件（Gradle 9 兼容，见 apply_android_patches）
 WRAPPER_PROPERTIES="$GEN_ANDROID_DIR/gradle/wrapper/gradle-wrapper.properties"
@@ -99,22 +100,24 @@ version_of() { # 读取指定文件内的版本号（用于展示差异）
     *tauri.conf.json) python3 -c 'import json;print(json.load(open("'"$f"'"))["version"])' ;;
     *Cargo.toml)      sed -n 's/^version = "\(.*\)"/\1/p' "$f" | head -1 ;;
     *manifest.json)   python3 -c 'import json;print(json.load(open("'"$f"'"))["current"])' ;;
+    *package.json)    python3 -c 'import json;print(json.load(open("'"$f"'"))["version"])' ;;
   esac
 }
 
-# 版本一致性检查（tauri.conf / Cargo.toml / Cargo.lock / manifest 应一致）
+# 版本一致性检查（tauri.conf / Cargo.toml / Cargo.lock / manifest / package.json 应一致）
 check_versions() {
-  local v1 v2 v3 v4
+  local v1 v2 v3 v4 v5
   v1="$(get_version)"
   v2="$(version_of "$CARGO_TOML")"
   v3="$(version_of "$MANIFEST")"
+  v5="$(version_of "$PKG_JSON")"
   if [ -f "$CARGO_LOCK" ]; then v4="$(python3 -c "
 import re
 s=open('$CARGO_LOCK').read()
 m=re.search(r'name = \"geometry-calculator\"\nversion = \"([^\"]+)\"', s)
 print(m.group(1) if m else '')")"; fi
-  info "版本信息: tauri.conf=$v1  Cargo.toml=$v2  Cargo.lock=${v4:-?}  manifest=$v3"
-  if [ "$v1" = "$v2" ] && [ "$v1" = "$v3" ] && { [ -z "${v4:-}" ] || [ "$v1" = "$v4" ]; }; then
+  info "版本信息: tauri.conf=$v1  Cargo.toml=$v2  Cargo.lock=${v4:-?}  manifest=$v3  package.json=$v5"
+  if [ "$v1" = "$v2" ] && [ "$v1" = "$v3" ] && [ "$v1" = "$v5" ] && { [ -z "${v4:-}" ] || [ "$v1" = "$v4" ]; }; then
     ok "版本号一致（v$v1）"
     return 0
   fi
@@ -164,6 +167,15 @@ assert n == 1, f"{p} 未找到 current 字段"
 if f'"id": "{ver}"' not in s:
     s, n2 = re.subn(r'("versions"\s*:\s*\[\s*\n)', r'\g<1>    { "id": "%s", "label": "v%s" },\n' % (ver, ver), s, count=1)
     assert n2 == 1, f"{p} 未找到 versions 数组"
+open(p, "w", encoding="utf-8").write(s)
+print("  更新", p, "->", ver)
+PY
+  python3 - "$PKG_JSON" "$ver" <<'PY'
+import re, sys
+p, ver = sys.argv[1], sys.argv[2]
+s = open(p, encoding="utf-8").read()
+s, n = re.subn(r'(\n\s*"version"\s*:\s*")[^"]+(",)', r'\g<1>'+ver+r'\g<2>', s, count=1)
+assert n == 1, f"{p} 未找到 version 字段"
 open(p, "w", encoding="utf-8").write(s)
 print("  更新", p, "->", ver)
 PY

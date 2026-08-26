@@ -97,11 +97,20 @@ jobs:
         shell: bash
         run: npx --yes @tauri-apps/cli@^2 build --bundles nsis
 
+      - name: 诊断产物目录
+        working-directory: src-tauri
+        shell: bash
+        run: |
+          echo "=== target/release/bundle ==="
+          ls -laR target/release/bundle 2>/dev/null || echo "bundle 目录不存在！"
+          echo "=== 全部 exe/msi ==="
+          find target -iname "*.exe" -o -iname "*.msi" 2>/dev/null | head -20
+
       - name: 上传产物
         uses: actions/upload-artifact@v4
         with:
           name: windows
-          path: src-tauri/target/release/bundle/
+          path: src-tauri/target/**/bundle/**
           if-no-files-found: error
 
   # ================= 桌面端：macOS =================
