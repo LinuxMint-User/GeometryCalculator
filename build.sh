@@ -30,6 +30,20 @@ TAURI_CONF="$TAURI_DIR/tauri.conf.json"
 CARGO_TOML="$TAURI_DIR/Cargo.toml"
 CARGO_LOCK="$TAURI_DIR/Cargo.lock"
 
+# Android 工程内的补丁目标文件（Gradle 9 兼容，见 apply_android_patches）
+WRAPPER_PROPERTIES="$GEN_ANDROID_DIR/gradle/wrapper/gradle-wrapper.properties"
+ROOT_BUILD_GRADLE="$GEN_ANDROID_DIR/build.gradle.kts"
+APP_BUILD_GRADLE="$GEN_ANDROID_DIR/app/build.gradle.kts"
+BUILDTASK_FILE="$GEN_ANDROID_DIR/buildSrc/src/main/java/io/github/linuxmintuser/geometrycalculator/kotlin/BuildTask.kt"
+# tauri crate 内的构建脚本（cargo registry，cargo update 后会还原，同样需重打）
+CRATE_GRADLE_GLOB="$HOME/.cargo/registry/src/*/tauri-*/mobile/android/build.gradle.kts"
+
+# Gradle 9 兼容补丁的版本组合（对应 JDK 25+ 环境）
+PATCH_AGP_VERSION="8.11.0"
+PATCH_KGP_VERSION="2.3.20"
+PATCH_GRADLE_VERSION="9.5.1"
+PATCH_GRADLE_URL="https\://mirrors.cloud.tencent.com/gradle/gradle-9.5.1-bin.zip"
+
 # 桌面端支持的目标架构（tauri 交叉打包需对应 gcc 工具链）
 DESKTOP_ARCHES=("x86_64" "aarch64")
 # Android ABI → Gradle flavor 映射（对应 gen/android buildSrc RustPlugin.kt）
@@ -215,9 +229,13 @@ check_env() {
   fi
 
   if [ -f "$GEN_ANDROID_DIR/gradlew" ]; then
-    printf '%-28s %s\n' "Android 工程 (gen)" "$(ok ✓ 存在)"
+    if grep -q "ExecOperations" "$BUILDTASK_FILE" 2>/dev/null; then
+      printf '%-28s %s\n' "Android 工程 (gen)" "$(ok ✓ 存在，Gradle 9 补丁已打)"
+    else
+      printf '%-28s %s\n' "Android 工程 (gen)" "$(warn ○ 存在，补丁缺失（构建时会自动重打）)"
+    fi
   else
-    printf '%-28s %s\n' "Android 工程 (gen)" "$(warn ○ 不存在，需 tauri android init 生成)"
+    printf '%-28s %s\n' "Android 工程 (gen)" "$(warn ○ 不存在（构建时会自动 tauri android init）)"
   fi
 
   check_versions || rc=1
@@ -273,8 +291,174 @@ desktop_build() { # desktop_build <debug|release> <bundle列表或all> <架构>
   if [ "$mode" = "debug" ]; then mode_flag=(--debug); fi
 
   hdr "构建桌面端（${mode}，架构 $( [ "$arch" = "host" ] && echo "$(uname -m)" || echo "$arch" )）"
-  run tauri build "${mode_flag[@]}" "${bundle_args[@]}" "${tauri_arch[@]}"
+  ( cd "$TAURI_DIR" && run tauri build "${mode_flag[@]}" "${bundle_args[@]}" "${tauri_arch[@]}" )
   ok "桌面端构建完成，产物在 src-tauri/target/$( [ "$mode" = debug ] && echo debug || echo release )/bundle/"
+}
+
+# ---- Android 工程补丁（Gradle 9 兼容） ----------------------------------
+# 背景：Tauri 官方生成的 Android 工程默认 Gradle 8.14.3（最高支持 Java 24），
+# 在 JDK 25+ 环境（如较新的 Fedora 只有 25/26）下会崩。升级到 Gradle 9.x 后
+# 官方模板的部分写法已不兼容，需要以下四处适配。这些改动位于可重新生成的
+# gen/ 与 cargo registry 内，不进版本库，故构建前自动检测并重打。
+
+ensure_android_gen() { # gen/ 缺失时自动 tauri android init 重新生成
+  if [ -f "$GEN_ANDROID_DIR/gradlew" ]; then return 0; fi
+  require_cmd tauri '安装: cargo install tauri-cli --version "^2"' || return 1
+  warn "Android 工程缺失（$GEN_ANDROID_DIR），正在重新生成…"
+  ( cd "$TAURI_DIR" && run tauri android init )
+  info "tauri android init 完成，随后自动打 Gradle 9 兼容补丁"
+}
+
+find_tauri_crate_build() { # 定位 cargo registry 里最新 tauri crate 的构建脚本
+  ls -t $CRATE_GRADLE_GLOB 2>/dev/null | head -1
+}
+
+# 把 kotlinOptions { jvmTarget = "1.8" } 转换为 kotlin.compilerOptions 写法
+# （Gradle 9 + KGP 2.x 移除 kotlinOptions）
+patch_kotlin_options() {
+  local f="$1"
+  python3 - "$f" <<'PY'
+import re, sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+if "kotlinOptions" not in s:
+    print("  无需转换", p)
+    sys.exit(0)
+m = re.search(r'kotlinOptions\s*\{[^}]*?jvmTarget\s*=\s*"([^"]+)"', s, re.S)
+jvm = {"1.8": "JVM_1_8", "11": "JVM_11", "17": "JVM_17"}.get(m.group(1) if m else "1.8", "JVM_1_8")
+block = ('kotlin {\n'
+         '    compilerOptions {\n'
+         '        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.' + jvm + '\n'
+         '    }\n'
+         '}')
+s2, n = re.subn(r'kotlinOptions\s*\{[^}]*\}', block, s, count=1, flags=re.S)
+assert n == 1, f"{p} 的 kotlinOptions 块解析失败"
+open(p, "w", encoding="utf-8").write(s2)
+print("  已转换", p)
+PY
+}
+
+# BuildTask.kt 补丁版模板（原版用 project.exec，Gradle 9 已移除 → ExecOperations 注入）
+write_buildtask_patch() {
+  cat > "$BUILDTASK_FILE" <<'KT'
+import java.io.File
+import javax.inject.Inject
+import org.apache.tools.ant.taskdefs.condition.Os
+import org.gradle.api.DefaultTask
+import org.gradle.api.GradleException
+import org.gradle.api.logging.LogLevel
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.TaskAction
+import org.gradle.process.ExecOperations
+
+open class BuildTask @Inject constructor(private val execOperations: ExecOperations) : DefaultTask() {
+    @Input
+    var rootDirRel: String? = null
+    @Input
+    var target: String? = null
+    @Input
+    var release: Boolean? = null
+
+    @TaskAction
+    fun assemble() {
+        val executable = """node""";
+        try {
+            runTauriCli(executable)
+        } catch (e: Exception) {
+            if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+                // Try different Windows-specific extensions
+                val fallbacks = listOf(
+                    "$executable.exe",
+                    "$executable.cmd",
+                    "$executable.bat",
+                )
+                
+                var lastException: Exception = e
+                for (fallback in fallbacks) {
+                    try {
+                        runTauriCli(fallback)
+                        return
+                    } catch (fallbackException: Exception) {
+                        lastException = fallbackException
+                    }
+                }
+                throw lastException
+            } else {
+                throw e;
+            }
+        }
+    }
+
+    fun runTauriCli(executable: String) {
+        val rootDirRel = rootDirRel ?: throw GradleException("rootDirRel cannot be null")
+        val target = target ?: throw GradleException("target cannot be null")
+        val release = release ?: throw GradleException("release cannot be null")
+        val args = listOf("tauri", "android", "android-studio-script");
+
+        execOperations.exec {
+            workingDir(File(project.projectDir, rootDirRel))
+            executable(executable)
+            args(args)
+            if (project.logger.isEnabled(LogLevel.DEBUG)) {
+                args("-vv")
+            } else if (project.logger.isEnabled(LogLevel.INFO)) {
+                args("-v")
+            }
+            if (release) {
+                args("--release")
+            }
+            args(listOf("--target", target))
+        }.assertNormalExitValue()
+    }
+}
+KT
+}
+
+apply_android_patches() { # 检测并重打全部四处补丁（幂等，可重复执行）
+  ensure_android_gen || return 1
+
+  local patched=0
+
+  # 1) gradle wrapper：官方 Gradle 8.14.3 → 腾讯云镜像 Gradle 9.5.1
+  if [ -f "$WRAPPER_PROPERTIES" ] && ! grep -q "gradle-${PATCH_GRADLE_VERSION}-bin.zip" "$WRAPPER_PROPERTIES"; then
+    info "补丁 1/4：Gradle wrapper → ${PATCH_GRADLE_VERSION}（腾讯云镜像）"
+    # 注意：properties 里 URL 冒号需转义（\:），sed 替换串要把 \ 翻倍成 \\ 才能原样写出
+    sed -i "s#^distributionUrl=.*#distributionUrl=${PATCH_GRADLE_URL//\\/\\\\}#" "$WRAPPER_PROPERTIES"
+    patched=$((patched+1))
+  fi
+
+  # 2) 根 build.gradle.kts：AGP + KGP 升级到兼容 Gradle 9 的版本
+  if [ -f "$ROOT_BUILD_GRADLE" ] && ! grep -q "kotlin-gradle-plugin:${PATCH_KGP_VERSION}" "$ROOT_BUILD_GRADLE"; then
+    info "补丁 2/4：AGP ${PATCH_AGP_VERSION} + KGP ${PATCH_KGP_VERSION}"
+    sed -i "s#classpath(\"com.android.tools.build:gradle:[^\"]*\")#classpath(\"com.android.tools.build:gradle:${PATCH_AGP_VERSION}\")#; s#classpath(\"org.jetbrains.kotlin:kotlin-gradle-plugin:[^\"]*\")#classpath(\"org.jetbrains.kotlin:kotlin-gradle-plugin:${PATCH_KGP_VERSION}\")#" "$ROOT_BUILD_GRADLE"
+    patched=$((patched+1))
+  fi
+
+  # 3) app/build.gradle.kts + crate build.gradle.kts：kotlinOptions → compilerOptions
+  if [ -f "$APP_BUILD_GRADLE" ] && grep -q "kotlinOptions" "$APP_BUILD_GRADLE"; then
+    info "补丁 3/4：app/build.gradle.kts kotlinOptions → compilerOptions"
+    patch_kotlin_options "$APP_BUILD_GRADLE"
+    patched=$((patched+1))
+  fi
+  local crate_build; crate_build="$(find_tauri_crate_build)"
+  if [ -n "$crate_build" ] && grep -q "kotlinOptions" "$crate_build"; then
+    info "补丁 3/4：tauri crate $crate_build kotlinOptions → compilerOptions"
+    patch_kotlin_options "$crate_build"
+    patched=$((patched+1))
+  fi
+
+  # 4) BuildTask.kt：project.exec（Gradle 9 已移除）→ ExecOperations 注入
+  if [ -f "$BUILDTASK_FILE" ] && ! grep -q "ExecOperations" "$BUILDTASK_FILE"; then
+    info "补丁 4/4：BuildTask.kt 改用 ExecOperations 注入"
+    write_buildtask_patch
+    patched=$((patched+1))
+  fi
+
+  if [ "$patched" -gt 0 ]; then
+    ok "Gradle 9 兼容补丁已重新应用（$patched 处）"
+  else
+    info "Gradle 9 兼容补丁已就位，无需重打"
+  fi
 }
 
 # ---- Android 构建 --------------------------------------------------------
@@ -294,24 +478,20 @@ android_build() { # android_build <debug|release> <abi列表或universal>
     apk_dir="$GEN_ANDROID_DIR/app/build/outputs/apk/$abi/$(echo "$build_type" | tr '[:upper:]' '[:lower:]')"
   fi
 
-  # 前置检查
+  # 前置检查 + 自动生成/重打 Gradle 9 兼容补丁
   require_cmd tauri '安装: cargo install tauri-cli --version "^2"' || return 1
   require_cmd node '构建 Android 需 node（Gradle rust 插件执行入口）' || return 1
-  [ -f "$GEN_ANDROID_DIR/gradlew" ] || {
-    err "Android 工程缺失: $GEN_ANDROID_DIR"
-    info "先执行: tauri android init"
-    return 1
-  }
+  apply_android_patches || return 1
 
   hdr "构建 Android APK（${mode}，ABI: $abi）"
   if [ "$abi" = "universal" ]; then
     # 官方链路：四 ABI 全打（由 RustPlugin 的 universal flavor 聚合）
-    run tauri android build --apk "${mode_flag[@]}"
+    ( cd "$TAURI_DIR" && run tauri android build --apk "${mode_flag[@]}" )
     ok "产物: $apk_dir/ 下的 app-universal-*.apk"
   else
     # 指定单 ABI：直接调 gradle 对应 flavor 任务
     info "指定 ABI $abi（flavor $flavor），直接走 Gradle 任务 assemble${flavor}${build_type}"
-    run ./gradlew "assemble${flavor}${build_type}"
+    ( cd "$GEN_ANDROID_DIR" && run ./gradlew "assemble${flavor}${build_type}" )
     ok "产物: $apk_dir/app-$abi-*.apk"
   fi
   if [ "$mode" = "release" ]; then
@@ -624,4 +804,7 @@ main() {
   esac
 }
 
-main "$@"
+# 直接执行时进入主流程；被 source（如测试/复用函数）时不执行
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  main "$@"
+fi

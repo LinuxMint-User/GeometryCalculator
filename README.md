@@ -81,7 +81,24 @@ APK 产物：`src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-un
 
 - 系统要求：Android 7.0（API 24）及以上
 - 架构：arm64-v8a / armeabi-v7a / x86 / x86_64 四路全打（universal APK）
-- 注意：`src-tauri/gen/android/` 内含 Gradle 9 兼容补丁，`build.sh clean deep` 会删除整个工程，需重新 `tauri android init` 并重打补丁，非必要不要用 deep 清理
+- 注意：`src-tauri/gen/android/` 内含 Gradle 9 兼容补丁，`build.sh clean deep` 会删除整个工程，非必要不要用 deep 清理（`build.sh` 会在下次 Android 构建时自动重建并重打补丁）
+
+### Gradle 9 兼容补丁（Android，记录于 2026-08-26）
+
+Tauri 官方生成的 Android 工程默认 Gradle 8.14.3，**最高只支持 Java 24**。若本机 JDK 为 25 或更高（例如较新的 Fedora 仅提供 25/26），需升级至 Gradle 9.5.1 并适配四处生成代码：
+
+| # | 文件 | 改动 |
+|---|---|---|
+| 1 | `gen/android/gradle/wrapper/gradle-wrapper.properties` | 官方源 → 腾讯云镜像 Gradle 9.5.1 |
+| 2 | `gen/android/build.gradle.kts` | AGP 8.11.0 + KGP 2.3.20（Gradle 9 需 KGP 2.0.20+） |
+| 3 | `gen/android/app/build.gradle.kts` 与 cargo registry 内 tauri crate 的 `mobile/android/build.gradle.kts` | `kotlinOptions` → `kotlin.compilerOptions`（KGP 2.x 移除前者） |
+| 4 | `gen/android/buildSrc/.../BuildTask.kt` | `project.exec`（Gradle 9 已移除）→ `ExecOperations` 注入 + `@Inject` 构造 |
+
+以上改动位于可重新生成的 `gen/` 与 cargo registry 内，**不进版本库**（`gen/` 被 .gitignore 忽略）。因此：
+
+- 每次执行 `./build.sh android`，脚本会**自动检测**补丁是否缺失或已被还原，缺失时自动 `tauri android init`（若 `gen/` 被删）并**重打全部补丁**，无需手动处理；
+- **JDK ≤ 24** 的环境直接走官方流程即可，不受补丁影响；
+- 若将来 Tauri 官方模板支持 Gradle 9，这些补丁将不再需要，`build.sh` 检测到新模板时也不会重复改动。
 
 引擎源码、测试与浏览器编译见 `backend/src/`（TypeScript）；功能说明见页面内「文档」tab 的维护者《使用指南》《更新日志》。
 
