@@ -1,0 +1,41 @@
+# macOS 桌面安装包构建（app / dmg）
+#
+# 触发方式：
+#   - workflow_dispatch：Actions 面板手动触发（单平台构建，不发布）
+#   - workflow_call：被 release.yml（tag 触发）调用，作为全量发布的一部分
+name: Build macOS
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  desktop-macos:
+    name: Desktop macOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Rust 工具链
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust 缓存
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: 安装 Node（提供 npx 运行预编译 tauri CLI）
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 构建安装包（app / dmg）
+        working-directory: src-tauri
+        run: npx --yes @tauri-apps/cli@^2 build --bundles app,dmg
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: src-tauri/target/release/bundle/
+          if-no-files-found: error
