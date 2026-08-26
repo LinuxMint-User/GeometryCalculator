@@ -95,16 +95,17 @@ jobs:
       - name: 构建安装包（NSIS .exe）
         working-directory: src-tauri
         shell: bash
-        run: npx --yes @tauri-apps/cli@^2 build --bundles nsis
-
-      - name: 诊断产物目录
-        working-directory: src-tauri
-        shell: bash
         run: |
-          echo "=== target/release/bundle ==="
-          ls -laR target/release/bundle 2>/dev/null || echo "bundle 目录不存在！"
-          echo "=== 全部 exe/msi ==="
-          find target -iname "*.exe" -o -iname "*.msi" 2>/dev/null | head -20
+          echo "=== npx 拉取的 CLI 版本 ==="
+          npx --yes @tauri-apps/cli@^2 --version
+          echo "=== 开始构建 ==="
+          npx --yes @tauri-apps/cli@^2 build --bundles nsis
+          echo "=== 构建完成，产物检查 ==="
+          ls -la target 2>/dev/null || echo "target 目录不存在！"
+          echo "--- target/release ---"
+          ls -la target/release 2>/dev/null || echo "target/release 不存在！"
+          echo "--- 全部 exe/msi ---"
+          find . -iname "*.exe" -o -iname "*.msi" 2>/dev/null | head -20 || echo "无 exe/msi"
 
       - name: 上传产物
         uses: actions/upload-artifact@v4
