@@ -22,6 +22,10 @@ on:
 permissions:
   contents: write # 创建发布草稿所需
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false # 同 ref 串行执行，避免重复创建发布草稿
+
 jobs:
   # ================= 四个平台构建（reusable workflow）=================
   linux:

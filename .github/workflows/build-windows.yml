@@ -24,36 +24,28 @@ jobs:
         with:
           workspaces: src-tauri
 
-      - name: 安装 Node（提供 npx 运行预编译 tauri CLI）
+      - name: 安装 Node（npm 全局安装 tauri CLI 需要）
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      # Git Bash 下 npx 静默失败（无输出、退出码 0、不执行任何构建），
-      # 因此改用 PowerShell 原生执行 + npm 全局安装 CLI，避免 npx shim 问题。
-      - name: 安装 tauri CLI 并构建安装包（NSIS .exe）
+      # 注意：Git Bash 下 npx 会静默失败（无输出且退出码 0，cargo 从不执行），
+      # 必须用 PowerShell（shell: pwsh）+ npm 全局安装后直接调 tauri。
+      - name: 构建安装包（NSIS .exe）
         working-directory: src-tauri
         shell: pwsh
         run: |
-          Write-Host "=== 1. 安装 tauri CLI ==="
           npm install -g @tauri-apps/cli@^2
-          Write-Host "=== 2. CLI 版本 ==="
           tauri --version
-          Write-Host "=== 3. 构建前 target 状态 ==="
-          if (Test-Path target) { Get-ChildItem target | Select-Object -First 20 } else { Write-Host "target 不存在（首次构建）" }
-          Write-Host "=== 4. 开始构建 ==="
           tauri build --bundles nsis
-          Write-Host "=== 5. 构建后 target/release 状态 ==="
-          if (Test-Path target/release) { Get-ChildItem -Recurse target/release | Select-Object -First 80 } else { Write-Host "target/release 不存在！" }
-          Write-Host "=== 6. 全部 exe/msi ==="
-          Get-ChildItem -Path target -Recurse -Include *.exe,*.msi -ErrorAction SilentlyContinue | Select-Object -First 20 -ExpandProperty FullName
-          Write-Host "=== 7. 复制产物 ==="
+          # 收集产物到固定目录
           New-Item -ItemType Directory -Force -Path ..\dist-win | Out-Null
           $exes = Get-ChildItem -Path target\release\bundle\nsis -Filter *.exe -ErrorAction SilentlyContinue
           if ($exes) {
             foreach ($e in $exes) { Copy-Item $e.FullName ..\dist-win\ -Verbose }
           } else {
-            Write-Host "!!! 未找到 nsis 产物（上方第 5/6 步可见 target 结构）"
+            Write-Host "!!! 未找到 nsis 产物，target 结构如下："
+            Get-ChildItem -Recurse target | Select-Object -First 40
             exit 1
           }
 
