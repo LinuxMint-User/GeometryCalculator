@@ -35,10 +35,10 @@
 
 最新发布产物在 [GitHub Releases](https://github.com/LinuxMint-User/GeometryCalculator/releases) 页面：
 
-- 桌面：Linux（deb/rpm/AppImage）、Windows（NSIS 安装版 + 便携单文件版）、macOS（dmg）
+- 桌面：Linux（deb/rpm/AppImage）、Windows（NSIS 安装版 + 便携单文件版）、macOS（dmg；系统要求 macOS 10.15（Catalina）及以上，Apple Silicon（M1 及更新）需 macOS 11 及以上）
 - 安卓：universal 通吃包（四 ABI）+ 各单架构小包（arm64-v8a / armeabi-v7a / x86 / x86_64）
 - 手机安装 APK 需在系统设置中允许「未知来源」应用；系统要求 Android 9（API 28）及以上
-- WebView 内核：安装包内的前端已用 esbuild 降级到 Chrome 74 语法，Android 9 及以上自带 WebView 即可正常运行；若设备 WebView 过旧可在系统设置中更新「Android System WebView」
+- WebView 内核：安装包内的前端已用 esbuild 降级到 Chrome 74 语法，Android 9 及以上自带 WebView 即可正常运行；若设备 WebView 过旧可在系统设置中更新「Android System WebView」。macOS 无此问题——应用使用系统 WKWebView（Safari 内核），随 macOS 系统更新，无需单独安装或升级
 
 ### 浏览器预览（最轻量，无需 Tauri）
 

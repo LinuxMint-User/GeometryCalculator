@@ -35,10 +35,10 @@ This is a maintained fork of [zhdbk3/GeometryCalculator](https://github.com/zhdb
 
 Latest release artifacts live on [GitHub Releases](https://github.com/LinuxMint-User/GeometryCalculator/releases):
 
-- Desktop: Linux (deb/rpm/AppImage), Windows (NSIS installer + portable single-file exe), macOS (dmg)
+- Desktop: Linux (deb/rpm/AppImage), Windows (NSIS installer + portable single-file exe), macOS (dmg; requires macOS 10.15 (Catalina) or later, and macOS 11 or later on Apple Silicon (M1 or newer))
 - Android: universal APK (all four ABIs) plus per-ABI smaller APKs (arm64-v8a / armeabi-v7a / x86 / x86_64)
 - On Android you may need to allow "unknown sources" when installing the APK; Android 9 (API 28) or newer is required
-- WebView engine: the packaged frontend is transpiled with esbuild down to Chrome 74 syntax, so the stock WebView on Android 9 and newer runs it fine; if a device's WebView is outdated, update "Android System WebView" in system settings
+- WebView engine: the packaged frontend is transpiled with esbuild down to Chrome 74 syntax, so the stock WebView on Android 9 and newer runs it fine; if a device's WebView is outdated, update "Android System WebView" in system settings. macOS has no such issue — the app uses the system WKWebView (Safari engine), which is updated with macOS itself, so nothing needs to be installed or upgraded separately
 
 ### Browser preview (lightest, no Tauri needed)
 
