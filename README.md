@@ -39,6 +39,7 @@
 - 未发布 AppImage：AppImage 会自带打包 GTK/WebKitGTK 等依赖，在新发行版上兼容问题反复（白屏、启动崩溃、输入卡死）；deb 与 rpm 使用系统依赖库，兼容性稳定（Ubuntu/Debian 系用 deb，Fedora/openSUSE 等用 rpm）
 - 安卓：universal 通吃包（四 ABI）+ 各单架构小包（arm64-v8a / armeabi-v7a / x86 / x86_64）
 - 手机安装 APK 需在系统设置中允许「未知来源」应用；系统要求 Android 9（API 28）及以上
+- 签名：安装包与 CI 产物为 **debug 版**（自动使用 debug 签名，可直接安装）；**release 版需配置 keystore 签名**，否则 APK 为 unsigned（未签名），无法安装或上架
 - WebView 内核：安装包内的前端已用 esbuild 降级到 Chrome 74 语法，Android 9 及以上自带 WebView 即可正常运行；若设备 WebView 过旧可在系统设置中更新「Android System WebView」。macOS 无此问题——应用使用系统 WKWebView（Safari 内核），随 macOS 系统更新，无需单独安装或升级
 
 ### 浏览器预览（最轻量，无需 Tauri）
@@ -69,9 +70,11 @@ rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-andro
 ./build.sh check                  # 检查工具链环境（缺啥补啥）
 ./build.sh desktop -b deb,rpm     # 桌面端，打包 deb + rpm
 ./build.sh desktop --debug        # 桌面端 debug 构建
+./build.sh android                # Android APK（默认 debug，自动签名可直接安装）
 ./build.sh android --debug        # Android debug APK（universal 四 ABI）
 ./build.sh android --abi arm64-v8a  # Android 仅 arm64-v8a
-./build.sh all                    # 全量构建（桌面 release + Android release）
+./build.sh android -r             # Android release（需配置 keystore 签名，否则 unsigned 不可安装）
+./build.sh all                    # 全量构建（默认 debug，产物可直接安装/运行；-r 出 release）
 ./build.sh clean all -y           # 清理全部构建产物（跳过确认）
 ./build.sh version 2.6.0          # 统一版本号（tauri.conf/Cargo.toml/manifest 同步）
 ./build.sh help                   # 完整帮助
@@ -96,6 +99,7 @@ tauri android build --apk --debug     # 构建 debug APK
 APK 产物：`src-tauri/gen/android/app/build/outputs/apk/universal/debug/geometry-calculator_2.5.0_universal-debug.apk`（文件名含应用名/版本/flavor）
 
 - 系统要求：Android 9（API 28）及以上；WebView 内核要求同「下载安装包」说明
+- 签名：默认构建 debug（自动使用 debug 签名，产物可直接安装）；release 未配置 keystore 时产物为 unsigned（文件名含 unsigned），正式发布需先配置签名
 - 架构：arm64-v8a / armeabi-v7a / x86 / x86_64 四路全打（universal APK）
 - 注意：`src-tauri/gen/android/` 内含 Gradle 9 兼容补丁，`build.sh clean deep` 会删除整个工程，非必要不要用 deep 清理（`build.sh` 会在下次 Android 构建时自动重建并重打补丁）
 

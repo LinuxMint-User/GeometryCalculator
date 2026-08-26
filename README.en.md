@@ -39,6 +39,7 @@ Latest release artifacts live on [GitHub Releases](https://github.com/LinuxMint-
 - No AppImage: AppImage bundles GTK/WebKitGTK and other dependencies into the package, which repeatedly causes compatibility issues on new distros (white screen, crash on startup, frozen input); deb and rpm use the system libraries and are stable (Ubuntu/Debian use deb, Fedora/openSUSE use rpm)
 - Android: universal APK (all four ABIs) plus per-ABI smaller APKs (arm64-v8a / armeabi-v7a / x86 / x86_64)
 - On Android you may need to allow "unknown sources" when installing the APK; Android 9 (API 28) or newer is required
+- Signing: the release artifacts and CI output are **debug builds** (auto-signed with the debug keystore, installable out of the box); a **release build requires a keystore** — without one the APK is unsigned and cannot be installed or published
 - WebView engine: the packaged frontend is transpiled with esbuild down to Chrome 74 syntax, so the stock WebView on Android 9 and newer runs it fine; if a device's WebView is outdated, update "Android System WebView" in system settings. macOS has no such issue — the app uses the system WKWebView (Safari engine), which is updated with macOS itself, so nothing needs to be installed or upgraded separately
 
 ### Browser preview (lightest, no Tauri needed)
@@ -69,9 +70,11 @@ rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-andro
 ./build.sh check                  # check the toolchain (shows what is missing)
 ./build.sh desktop -b deb,rpm     # desktop build, bundle deb + rpm
 ./build.sh desktop --debug        # desktop debug build
+./build.sh android                # Android APK (default debug, auto-signed, installable)
 ./build.sh android --debug        # Android debug APK (universal, all four ABIs)
 ./build.sh android --abi arm64-v8a  # Android, arm64-v8a only
-./build.sh all                    # full build (desktop release + Android release)
+./build.sh android -r             # Android release (requires a keystore, otherwise unsigned and uninstallable)
+./build.sh all                    # full build (default debug, artifacts installable/run directly; -r for release)
 ./build.sh clean all -y           # clean all build artifacts (skip confirmation)
 ./build.sh version 2.6.0          # set a unified version (tauri.conf/Cargo.toml/manifest synced)
 ./build.sh help                   # full help
@@ -97,6 +100,7 @@ tauri android build --apk --debug     # build a debug APK
 APK output: `src-tauri/gen/android/app/build/outputs/apk/universal/debug/geometry-calculator_2.5.0_universal-debug.apk`
 
 - Requirement: Android 9 (API 28) or later; WebView requirement as described under "Download a release"
+- Signing: the default build is debug (auto-signed with the debug keystore, installable); a release build without a configured keystore is unsigned (the filename contains "unsigned") — configure signing before publishing
 - Architectures: arm64-v8a / armeabi-v7a / x86 / x86_64 in one universal APK
 - Note: `src-tauri/gen/android/` contains Gradle 9 compatibility patches; `build.sh clean deep` deletes the whole project — avoid `deep` unless necessary (`build.sh` regenerates the project and re-applies the patches automatically on the next Android build)
 
