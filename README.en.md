@@ -102,6 +102,14 @@ These changes live in the regenerable `gen/` directory and the cargo registry â€
 
 The engine source, tests and browser build live in `backend/src/` (TypeScript); for usage details, see the maintainer User Guide / Changelog in the "Docs" tab.
 
+### Automated releases (GitHub Actions)
+
+Pushing a `v*` tag (e.g. `v2.5.0`) triggers [release.yml](.github/workflows/release.yml):
+
+- Builds desktop installers for all three platforms (Linux deb/rpm/AppImage, Windows NSIS .exe, macOS dmg) plus an Android universal APK
+- Attaches the artifacts (with SHA256 checksums) to a GitHub Release **draft** â€” the draft stays private until you review it and manually click "Publish"
+- Running it manually from the Actions tab only builds and keeps workflow artifacts; no Release is created
+
 ---
 
 The original README (author's content) is fully preserved in [README-Origin.en.md](README-Origin.en.md) and not duplicated here.

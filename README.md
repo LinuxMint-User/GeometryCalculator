@@ -102,6 +102,14 @@ Tauri 官方生成的 Android 工程默认 Gradle 8.14.3，**最高只支持 Jav
 
 引擎源码、测试与浏览器编译见 `backend/src/`（TypeScript）；功能说明见页面内「文档」tab 的维护者《使用指南》《更新日志》。
 
+### 自动发布（GitHub Actions）
+
+推送 `v*` 标签（如 `v2.5.0`）触发 [release.yml](.github/workflows/release.yml)：
+
+- 自动构建三平台桌面安装包（Linux deb/rpm/AppImage、Windows NSIS .exe、macOS dmg）与 Android universal APK
+- 产物（含 SHA256 校验和）自动挂到 GitHub Release **草稿**——草稿不公开，检查无误后手动点「发布」
+- 在 Actions 面板手动触发则只构建并留存 workflow artifacts，不创建任何 Release
+
 ---
 
 原版 README（原作者内容）已完整保留，见 [README-Origin.md](README-Origin.md)，此处不再重复。
