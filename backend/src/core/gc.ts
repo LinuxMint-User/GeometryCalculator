@@ -667,7 +667,9 @@ export class Problem {
       const cond = this.mathObjs.get(id) as GcCond
       return {
         id: cond.id,
-        latex: cond.eqs.map((eq) => latex(eq)).join(' '),
+        // 列表显示条件本身（如 `AB \perp CD`、`平行四边形 ABCD`），
+        // 中文段包 \text{} 否则 KaTeX 不认裸中文；背后的代数方程不影响运算
+        latex: cond.id.replace(/[^\x00-\x7F]+\s*/g, (m) => `\\text{${m.trim()} }`),
       }
     })
   }

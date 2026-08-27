@@ -59,9 +59,9 @@ function latexFactor(e) {
         case 'sym':
             return symNameToLatex(e.name);
         case 'add':
-            return `\\left(${latexAdd(e)}\right)`;
+            return `\\left(${latexAdd(e)}\\right)`;
         case 'mul':
-            return `\\left(${latexMul(e)}\right)`;
+            return `\\left(${latexMul(e)}\\right)`;
         case 'pow':
             return latexPow(e);
         case 'sqrt':

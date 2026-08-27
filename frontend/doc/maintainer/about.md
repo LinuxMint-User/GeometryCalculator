@@ -7,3 +7,7 @@
 - 开源许可：GNU General Public License v3.0
 - 维护者：LinuxMint-User
 - 维护者仓库：https://github.com/LinuxMint-User/GeometryCalculator
+
+## 文档版本
+
+文档版本独立于软件版本：**只有文档内容发生实质变化才升级文档版本号**。当前文档为 v3.0，适用于软件 2.5.0；历史版本见文档页左上角版本切换。

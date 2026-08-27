@@ -577,8 +577,37 @@ XML
   # 6) minSdk 24 → 28（Android 9）：自带 WebView 内核（Chrome 74）才能解析
   #    前端 esbuild 降级后的语法，Android 7/8 系统 WebView 过旧无法使用
   if [ -f "$APP_BUILD_GRADLE" ] && ! grep -q "minSdk = 28" "$APP_BUILD_GRADLE"; then
-    info "补丁 6/6：minSdk 24 → 28（Android 9，WebView 兼容）"
+    info "补丁 6/7：minSdk 24 → 28（Android 9，WebView 兼容）"
     sed -i 's/minSdk = 24/minSdk = 28/' "$APP_BUILD_GRADLE"
+    patched=$((patched+1))
+  fi
+
+  # 7) Android 9 兼容：edge-to-edge 仅 Android 10+。Android 9 的老 WebView
+  #    （Chrome 85）不报告 env(safe-area-inset-top)，若 WebView 延伸到状态栏后，
+  #    前端顶栏拿不到顶部内边距，标题栏会被系统状态栏盖住；改用传统布局后
+  #    WebView 视口自动避开状态栏，无需前端兜底 padding
+  local main_activity="$GEN_ANDROID_DIR/app/src/main/java/io/github/linuxmintuser/geometrycalculator/MainActivity.kt"
+  if [ -f "$main_activity" ] && ! grep -q "VERSION_CODES.Q" "$main_activity"; then
+    info "补丁 7/7：MainActivity 仅 Android 10+ 启用 edge-to-edge"
+    cat > "$main_activity" <<'KT'
+package io.github.linuxmintuser.geometrycalculator
+
+import android.os.Build
+import android.os.Bundle
+import androidx.activity.enableEdgeToEdge
+
+class MainActivity : TauriActivity() {
+  override fun onCreate(savedInstanceState: Bundle?) {
+    // 仅 Android 10+（Q）启用 edge-to-edge：Android 9 的老 WebView（Chrome 85）
+    // 不报告 env(safe-area-inset-top)，若延伸到状态栏后顶栏会被状态栏盖住；
+    // 传统布局下 WebView 视口自动避开状态栏，无需前端 padding
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      enableEdgeToEdge()
+    }
+    super.onCreate(savedInstanceState)
+  }
+}
+KT
     patched=$((patched+1))
   fi
 

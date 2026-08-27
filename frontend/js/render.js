@@ -10,6 +10,79 @@ export function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+/* ---------------- choice-bar：轻量单选组件 ----------------
+   一组按钮 + 选中态（.active），替代 md-outlined-select。
+   不依赖 popover API（md-select 内部走 popover，Chrome 114+ 才有），
+   Chrome 85 及以下原生可用。结构：
+     <div class="choice-bar" id="xxx" role="radiogroup" aria-label="...">
+       <button class="choice-btn" data-value="a" role="radio" aria-checked="false">标签</button>
+       <button class="choice-btn active" data-value="b" role="radio" aria-checked="true">标签</button>
+     </div>
+   options: [{ value, labelKey?, label? }]；selectedValue 为初始选中值
+   value 缺省时回退用 id（条件类型等只定义 id 的数据结构） */
+
+export function renderChoiceBarHTML(id, options, selectedValue, opts = {}) {
+  const items = options
+    .map((o) => {
+      const val = o.value ?? o.id;
+      const label = o.label ?? t(o.labelKey);
+      const on = val === selectedValue;
+      const lk = o.labelKey ? ` data-label-key="${o.labelKey}"` : '';
+      return `<button type="button" class="choice-btn${on ? ' active' : ''}" data-value="${escapeHtml(val)}" role="radio" aria-checked="${on}"${lk}>${escapeHtml(label)}</button>`;
+    })
+    .join('');
+  const ariaLabel = opts.ariaKey ? t(opts.ariaKey) : opts.labelKey ? t(opts.labelKey) : '';
+  const ariaAttr = ariaLabel ? ` aria-label="${escapeHtml(ariaLabel)}"` : '';
+  const labelAttr = opts.labelKey ? ` data-i18n-label="${opts.labelKey}"` : '';
+  const cls = opts.className ? ` ${opts.className}` : '';
+  return `<div class="choice-bar${cls}" id="${id}" role="radiogroup"${ariaAttr}${labelAttr}>${items}</div>`;
+}
+
+// 读取选中值（无选中返回 ''）
+export function getChoiceValue(id) {
+  const bar = document.getElementById(id);
+  if (!bar) return '';
+  const active = bar.querySelector('.choice-btn.active');
+  return active ? active.dataset.value : '';
+}
+
+// 设置选中值（单选互斥）
+export function setChoiceValue(id, value) {
+  const bar = document.getElementById(id);
+  if (!bar) return;
+  bar.querySelectorAll('.choice-btn').forEach((b) => {
+    const on = b.dataset.value === value;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-checked', on ? 'true' : 'false');
+  });
+}
+
+// 绑定点击切换 + change 回调
+export function bindChoiceBar(id, onChange) {
+  const bar = document.getElementById(id);
+  if (!bar) return;
+  bar.addEventListener('click', (e) => {
+    const btn = e.target.closest('.choice-btn');
+    if (!btn || !bar.contains(btn)) return;
+    bar.querySelectorAll('.choice-btn').forEach((b) => {
+      const on = b === btn;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    if (onChange) onChange(btn.dataset.value);
+  });
+}
+
+// i18n 刷新：按 data-label-key 重译按钮文字 + radiogroup aria-label
+export function refreshChoiceLabels(id) {
+  const bar = document.getElementById(id);
+  if (!bar) return;
+  bar.querySelectorAll('.choice-btn[data-label-key]').forEach((b) => {
+    b.textContent = t(b.dataset.labelKey);
+  });
+  if (bar.dataset.i18nLabel) bar.setAttribute('aria-label', t(bar.dataset.i18nLabel));
+}
+
 // 渲染一段 LaTeX 为 HTML（display 模式用于公式列表）
 export function renderLatex(latexStr, displayMode = true) {
   return katex.renderToString(latexStr, {
@@ -18,36 +91,28 @@ export function renderLatex(latexStr, displayMode = true) {
   });
 }
 
-// 把 {id, latex} 列表渲染进容器
+// 渲染含中文的混合 latex（如条件 id `平行四边形 ABCD`）：
+// KaTeX 不认裸中文（会红字报错），把连续非 ASCII 段包 \text{} 后再渲染
+export function renderMixedLatex(str, displayMode = true) {
+  const s = String(str).replace(/[^\x00-\x7F]+\s*/g, (m) => `\\text{${m.trim()} }`);
+  return renderLatex(s, displayMode);
+}
+
+// 把 {id, latex} 列表渲染进容器；每项带删除按钮（×），点击触发删除（事件委托在 main.js 绑定）
 export function renderObjList(container, items) {
   container.innerHTML = items
-    .map((item) => `<div class="obj-item">${renderLatex(item.latex)}</div>`)
+    .map(
+      (item) =>
+        `<div class="obj-item">${renderLatex(item.latex)}<button type="button" class="obj-del-btn" data-id="${escapeHtml(item.id)}" aria-label="${t('delBtn')}：${escapeHtml(item.id)}" title="${t('delBtn')}">×</button></div>`,
+    )
     .join('');
 }
 
-// 重建删除下拉框的选项并复位选中态。
-// 注意不能靠 select.value='' 清空：value setter 走 select()，空值找不到匹配 option 是 no-op，
-// displayText 会残留被删对象；reset() 会遍历 options 取消选中并重算显示文本。
-export async function renderDelOptions(select, items) {
-  const opts = items.map(
-    (item) => `<md-select-option value="${escapeHtml(item.id)}">${escapeHtml(item.id)}</md-select-option>`,
-  );
-  select.innerHTML = opts.join('');
-  // 先等 menu 完成 slot 分配（新选项就位、listController 缓存更新），再复位选中态
-  await select.updateComplete;
-  select.reset();
-  await select.updateComplete;
-}
-
 // 渲染全部列表（由 state 变更触发）
-export async function renderAll() {
+export function renderAll() {
   renderObjList(document.getElementById('unknown-list'), state.unknowns);
   renderObjList(document.getElementById('point-list'), state.points);
   renderObjList(document.getElementById('cond-list'), state.conds);
-
-  const delSelect = document.getElementById('del-select');
-  const all = [...state.unknowns, ...state.points, ...state.conds];
-  await renderDelOptions(delSelect, all);
 }
 
 // 求解结果（纯文本 LaTeX 行）
@@ -66,9 +131,8 @@ function renderField(typeId, f) {
     case 'text':
       return `<md-outlined-text-field id="${id}" data-label-key="${f.labelKey}" data-ph-key="${f.phKey}" label="${t(f.labelKey)}" placeholder="${t(f.phKey)}"></md-outlined-text-field>`;
     case 'select':
-      return `<md-outlined-select id="${id}" data-label-key="${f.labelKey}" data-default="${f.default ?? ''}" data-options='${JSON.stringify(f.options)}' label="${t(f.labelKey)}">${f.options
-        .map((o) => `<md-select-option value="${o.value}" data-label-key="${o.labelKey}">${t(o.labelKey)}</md-select-option>`)
-        .join('')}</md-outlined-select>`;
+      // 通用下拉：用 choice-bar 替代 md-outlined-select（不依赖 popover）
+      return renderChoiceBarHTML(id, f.options, f.default ?? '', { labelKey: f.labelKey });
     case 'checkbox':
       return `<label class="domain-option"><md-checkbox id="${id}"${f.default ? ' checked' : ''}></md-checkbox><span data-label-key="${f.labelKey}">${t(f.labelKey)}</span></label>`;
     case 'hint':
@@ -112,66 +176,41 @@ export function updateFormLabels(formEl = document.getElementById('add-form')) {
   formEl.querySelectorAll('[data-label-key]').forEach((el) => {
     if (el.tagName === 'SPAN') el.textContent = t(el.dataset.labelKey);
   });
-  // 通用 select 字段：刷新 label + 重建选项文本（displayText 快照问题）+ 保留当前值
-  formEl.querySelectorAll('md-outlined-select[data-options]').forEach(async (sel) => {
-    const opts = JSON.parse(sel.dataset.options);
-    const value = sel.value;
-    sel.setAttribute('label', t(sel.dataset.labelKey));
-    sel.innerHTML = opts
-      .map((o) => `<md-select-option value="${o.value}" data-label-key="${o.labelKey}">${t(o.labelKey)}</md-select-option>`)
-      .join('');
-    await Promise.all([...sel.querySelectorAll('md-select-option')].map((o) => o.updateComplete));
-    await new Promise((r) => requestAnimationFrame(r));
-    sel.value = value;
-    await sel.updateComplete;
+  // 通用 choice-bar 字段：刷新按钮文字 + radiogroup aria-label（替代 md-select 重建）
+  formEl.querySelectorAll('.choice-bar[data-i18n-label]').forEach((bar) => {
+    refreshChoiceLabels(bar.id);
   });
   // 条件输入区：输入 1 / 输入 2 / 输入 标签
   formEl.querySelectorAll('#cond-inputs md-outlined-text-field').forEach((el) => {
     const key = el.id === 'cond-in-1' ? 'input1' : el.id === 'cond-in-2' ? 'input2' : 'input';
     el.setAttribute('label', t(key));
   });
-  const condSel = formEl.querySelector('#cond-type');
-  if (condSel) condSel.setAttribute('label', t('condType'));
+  // 条件类型 choice-bar：刷新按钮文字 + aria-label
+  const condBar = formEl.querySelector('#cond-type');
+  if (condBar) refreshChoiceLabels('cond-type');
 }
 
-// 渲染"添加"表单（主类型下拉下方的动态区）
-export async function renderAddForm(typeId, formEl = document.getElementById('add-form')) {
+// 渲染"添加"表单（主类型选择下方的动态区）。choice-bar 即时可用，无需 upgrade 时序
+export function renderAddForm(typeId, formEl = document.getElementById('add-form')) {
   const typeDef = getObjType(typeId);
   let html = typeDef.fields
     ? typeDef.fields.map((f) => renderField(typeId, f)).join('')
     : '';
   formEl.innerHTML = html;
-  // 条件类型：追加条件类型下拉 + 输入区
+  // 条件类型：追加 choice-bar + 输入区（替代 md-outlined-select，不依赖 popover）
   if (typeDef.id === 'cond') {
-    const opts = typeDef.condTypes
-      .map((c) => `<md-select-option value="${c.id}">${t(c.labelKey)}</md-select-option>`)
-      .join('');
     const wrap = document.createElement('div');
-    wrap.innerHTML = `
-      <md-outlined-select id="cond-type" label="${t('condType')}">${opts}</md-outlined-select>
-      <div id="cond-inputs"></div>`;
-    // 先保存引用再移动：appendChild 会把节点移出 wrap，children 索引会变
-    const select = wrap.firstElementChild;
+    wrap.innerHTML =
+      renderChoiceBarHTML('cond-type', typeDef.condTypes, DEFAULT_COND_TYPE, { labelKey: 'condType' }) +
+      '<div id="cond-inputs"></div>';
+    const condBar = wrap.firstElementChild;
     const inputs = wrap.querySelector('#cond-inputs');
-    formEl.appendChild(select);
+    formEl.appendChild(condBar);
     formEl.appendChild(inputs);
-    // 时序修复：等选项 upgrade + 一帧后再设 value，否则 displayText 不同步（同 main.js 版本下拉）
-    await Promise.all([...select.querySelectorAll('md-select-option')].map((o) => o.updateComplete));
-    await new Promise((r) => requestAnimationFrame(r));
-    select.value = DEFAULT_COND_TYPE;
-    await select.updateComplete;
-    renderCondInputs(formEl.querySelector('#cond-inputs'), DEFAULT_COND_TYPE);
-    select.addEventListener('change', () => {
-      renderCondInputs(formEl.querySelector('#cond-inputs'), select.value);
+    renderCondInputs(inputs, DEFAULT_COND_TYPE);
+    bindChoiceBar('cond-type', (val) => {
+      renderCondInputs(inputs, val);
     });
-  }
-  // 通用 select 字段：等选项 upgrade + 一帧后设默认值（displayText 同步）
-  for (const sel of formEl.querySelectorAll('md-outlined-select[data-options]')) {
-    const opts = JSON.parse(sel.dataset.options);
-    await Promise.all([...sel.querySelectorAll('md-select-option')].map((o) => o.updateComplete));
-    await new Promise((r) => requestAnimationFrame(r));
-    sel.value = opts.find((o) => o.value === sel.getAttribute('data-default'))?.value ?? opts[0].value;
-    await sel.updateComplete;
   }
   // checkbox 文字点击联动（自定义元素无法被 label for 原生关联）
   formEl.querySelectorAll('.domain-option').forEach((label) => {
@@ -189,13 +228,19 @@ export function collectFormValues(typeId, formEl = document.getElementById('add-
   const values = {};
   for (const f of typeDef.fields ?? []) {
     if (f.kind === 'group') {
+      // group 内子字段按各自 kind 读取（checkbox → checked，text → value）
       for (const cf of f.fields) {
-        values[cf.key] = formEl.querySelector(`#${typeId}-${cf.key}`).checked;
+        if (cf.kind === 'text') {
+          values[cf.key] = formEl.querySelector(`#${typeId}-${cf.key}`).value;
+        } else {
+          values[cf.key] = formEl.querySelector(`#${typeId}-${cf.key}`).checked;
+        }
       }
     } else if (f.kind === 'text') {
       values[f.key] = formEl.querySelector(`#${typeId}-${f.key}`).value;
     } else if (f.kind === 'select') {
-      values[f.key] = formEl.querySelector(`#${typeId}-${f.key}`).value;
+      // choice-bar 单选值
+      values[f.key] = getChoiceValue(`${typeId}-${f.key}`);
     }
   }
   return values;

@@ -8,19 +8,15 @@ import '@material/web/button/text-button.js';
 import '@material/web/textfield/outlined-text-field.js';
 import '@material/web/checkbox/checkbox.js';
 import '@material/web/switch/switch.js';
-import '@material/web/select/outlined-select.js';
-import '@material/web/select/select-option.js';
 import '@material/web/dialog/dialog.js';
 import '@material/web/progress/circular-progress.js';
-import '@material/web/menu/menu.js';
-import '@material/web/menu/menu-item.js';
 
 import { marked } from 'marked';
 import katex from 'katex';
 import { api } from './api.js';
 import { refresh, act, setOnChange } from './state.js';
-import { renderAll, renderResults, renderLatex, renderAddForm, collectFormValues, escapeHtml, updateFormLabels } from './render.js';
-import { getObjType, getCondType, DEFAULT_OBJ_TYPE, DOMAIN_SETS } from './types.js';
+import { renderAll, renderResults, renderMixedLatex, renderAddForm, collectFormValues, escapeHtml, updateFormLabels, getChoiceValue, setChoiceValue, bindChoiceBar, refreshChoiceLabels } from './render.js';
+import { getObjType, getCondType, DEFAULT_OBJ_TYPE } from './types.js';
 import { setLang, getLang, t } from './i18n.js';
 
 /* ---------------- 主题（浅色/深色/跟随系统） ---------------- */
@@ -39,7 +35,7 @@ function systemTheme() {
 
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
-  const sw = document.getElementById('menu-theme-switch');
+  const sw = document.getElementById('theme-switch');
   sw.selected = theme === 'dark';
 }
 
@@ -69,9 +65,8 @@ function initLang() {
   });
 }
 
-/* ---------------- 顶栏菜单（语言 / 主题 / 清除本地偏好） ---------------- */
-const appMenu = document.getElementById('app-menu');
-
+/* ---------------- 顶栏按钮（语言 / 主题 / 清除）+ 添加页重置 ---------------- */
+// 顶栏平铺按钮替代 md-menu：不依赖 popover API，Chrome 85 及以下可用
 // 轻量 toast 提示（不引入组件库，自绘；连续触发会重置计时）
 let toastTimer = null;
 function showToast(msg) {
@@ -84,40 +79,33 @@ function showToast(msg) {
   }, 2000);
 }
 
-document.getElementById('menu-btn').addEventListener('click', () => {
-  appMenu.open = !appMenu.open;
-});
-
-// 语言切换
-document.getElementById('menu-lang').addEventListener('click', () => {
+// 语言切换（顶栏按钮，点击在中/英间切换）
+document.getElementById('btn-lang').addEventListener('click', () => {
   const next = getLang() === 'zh-CN' ? 'en-US' : 'zh-CN';
   setLang(next);
   localStorage.setItem(LANG_KEY, next);
-  appMenu.open = false;
 });
 
-// 主题切换（带文字 + 开关的菜单项；keepopen 保持菜单展开，便于连续尝试深浅效果）
-document.getElementById('menu-theme').addEventListener('click', () => {
-  const mode = getThemeMode();
-  const current = mode === 'system' ? systemTheme() : mode;
-  const next = current === 'dark' ? 'light' : 'dark';
-  localStorage.setItem(THEME_KEY, next); // 手动设置后固定，不再跟随系统
+// 主题切换（顶栏 md-switch，点击开关切换深浅；手动设置后固定，不再跟随系统）
+document.getElementById('theme-switch').addEventListener('change', () => {
+  const sw = document.getElementById('theme-switch');
+  const next = sw.selected ? 'dark' : 'light';
+  localStorage.setItem(THEME_KEY, next);
   applyTheme(next);
 });
 
 // 清除本地持久化设置（主题/语言），恢复默认（跟随系统）——给用户"状态可撤销"的自由
-document.getElementById('menu-clear').addEventListener('click', () => {
+document.getElementById('btn-clear').addEventListener('click', () => {
   localStorage.removeItem(THEME_KEY);
   localStorage.removeItem(LANG_KEY);
   initTheme();
   initLang();
   showToast(t('clearedLocal'));
-  appMenu.open = false;
 });
 
-// 重置计算器（清空所有对象），弹确认对话框防误触
-document.getElementById('menu-reset').addEventListener('click', () => {
-  appMenu.open = false;
+// 重置计算器（清空所有对象），弹确认对话框防误触。
+// 按钮位于添加页「对象列表」卡片底部（从顶栏移入，避免顶栏拥挤）
+document.getElementById('btn-reset').addEventListener('click', () => {
   document.getElementById('reset-dialog').open = true;
 });
 
@@ -130,12 +118,12 @@ document.getElementById('reset-dialog').addEventListener('close', async (e) => {
   }
 });
 
-// 同步菜单状态：当前语言名 + 主题开关（语言/主题变化时调用）
+// 同步顶栏状态：语言按钮显示目标语言名 + 主题开关（语言/主题变化时调用）
 function syncMenuState() {
   // 显示"点击后将切换到的语言"，而不是当前语言
-  document.getElementById('menu-lang-current').textContent = getLang() === 'zh-CN' ? 'English' : '中文';
+  document.getElementById('btn-lang').textContent = getLang() === 'zh-CN' ? 'EN' : '中';
   const dark = document.documentElement.dataset.theme === 'dark';
-  const sw = document.getElementById('menu-theme-switch');
+  const sw = document.getElementById('theme-switch');
   if (sw.selected !== dark) sw.selected = dark;
 }
 document.addEventListener('langchange', syncMenuState);
@@ -221,12 +209,12 @@ function showAddError(key, msg = null) {
 }
 
 async function handleAdd() {
-  const typeId = document.getElementById('add-type').value;
+  const typeId = getChoiceValue('add-type');
   showAddError('');
   const typeDef = getObjType(typeId);
   try {
     if (typeId === 'cond') {
-      const condType = getCondType(document.getElementById('cond-type').value);
+      const condType = getCondType(getChoiceValue('cond-type'));
       const inputs = Array.from({ length: condType.arity }, (_, i) =>
         document.getElementById(`cond-in-${i + 1}`).value.trim(),
       );
@@ -247,7 +235,12 @@ async function handleAdd() {
       }
       await act(() => {
         if (typeId === 'unknown') {
-          return api[typeDef.api](values.name, DOMAIN_SETS[values.domain] ?? DOMAIN_SETS.reals);
+          // 取值范围：正/零/负三开关直接组合成引擎的三布尔结构
+          return api[typeDef.api](values.name, {
+            negative: !!values.negative,
+            zero: !!values.zero,
+            positive: !!values.positive,
+          });
         }
         return api[typeDef.api](values.name, values.x, values.y, values.line1, values.line2);
       });
@@ -260,33 +253,26 @@ async function handleAdd() {
   }
 }
 
-// 主类型切换：重新渲染表单
-document.getElementById('add-type').addEventListener('change', (e) => {
-  renderAddForm(e.target.value);
+// 主类型切换：重新渲染表单（choice-bar 点击切换，不依赖 popover）
+bindChoiceBar('add-type', (val) => {
+  renderAddForm(val);
 });
 
 /* ---------------- 删除对象（含依赖提示） ---------------- */
-async function handleDelete() {
-  const sel = document.getElementById('del-select');
+// 列表项 × 按钮触发删除：点哪项删哪项，不再用下拉选择（事件委托在 bindEvents 绑定）
+let pendingDeleteId = null;
+async function handleDelete(id) {
+  pendingDeleteId = id;
   const delErr = document.getElementById('del-error');
-  const id = sel.value;
-  if (!id) {
-    delErrKey = 'errNoDelSelect';
-    delErr.textContent = t('errNoDelSelect');
-    delErr.hidden = false;
-    showToast(t('errNoDelSelect'));
-    setOpStatus('warn', 'errNoDelSelect');
-    return;
-  }
   delErrKey = null;
   delErr.hidden = true;
   try {
     const requiredBy = await api.getDeeplyRequiredBy(id);
     const info = document.getElementById('del-dialog-info');
     info.innerHTML =
-      renderLatex(id, false) +
+      renderMixedLatex(id, false) +
       (requiredBy.length > 0
-        ? '<br>' + t('delDepHint') + escapeHtml(requiredBy.join(', '))
+        ? '<br>' + t('delDepHint') + requiredBy.map((r) => renderMixedLatex(r, false)).join(', ')
         : '');
     document.getElementById('del-dialog').open = true;
   } catch (e) {
@@ -295,8 +281,8 @@ async function handleDelete() {
 }
 
 document.getElementById('del-dialog').addEventListener('close', async (e) => {
-  if (e.target.returnValue === 'confirm') {
-    const id = document.getElementById('del-select').value;
+  if (e.target.returnValue === 'confirm' && pendingDeleteId) {
+    const id = pendingDeleteId;
     try {
       const requiredBy = await api.getDeeplyRequiredBy(id);
       await act(() => api.delObjs([id, ...requiredBy]));
@@ -306,6 +292,7 @@ document.getElementById('del-dialog').addEventListener('close', async (e) => {
       setOpStatus('error', null, String(err));
     }
   }
+  pendingDeleteId = null;
 });
 
 /* ---------------- 求解 ---------------- */
@@ -531,26 +518,24 @@ function renderDoc(html) {
   contentEl.addEventListener('scroll', contentEl._scrollHandler, { passive: true });
 }
 
-// 从 doc/manifest.json 初始化文档系统：版本下拉 + 文档列表 + 默认文档
+// 从 doc/manifest.json 初始化文档系统：版本 choice-bar + 文档列表 + 默认文档
 async function initDocs() {
-  const select = document.getElementById('doc-version-select');
+  const bar = document.getElementById('doc-version-select');
   try {
     const resp = await fetch('doc/manifest.json');
     if (!resp.ok) throw new Error('not found');
     docManifest = await resp.json();
     docCurrent = docManifest.current;
     docVersion = docCurrent;
-    select.innerHTML = docManifest.versions
-      .map((v) => `<md-select-option value="${v.id}"${v.id === docCurrent ? ' selected' : ''}>${v.label}</md-select-option>`)
+    // 填充版本按钮（label 来自 manifest 版本号，非 i18n key；choice-bar 不依赖 popover）
+    bar.innerHTML = docManifest.versions
+      .map(
+        (v) =>
+          `<button type="button" class="choice-btn${v.id === docCurrent ? ' active' : ''}" data-value="${escapeHtml(v.id)}" role="radio" aria-checked="${v.id === docCurrent}">${escapeHtml(v.label)}</button>`,
+      )
       .join('');
-    // 时序修复：等选项完成 custom element upgrade + 一帧后再设 value，
-    // 否则 menu.items 为空，displayText 不会同步、框内显示空白
-    await Promise.all([...select.querySelectorAll('md-select-option')].map((o) => o.updateComplete));
-    await new Promise((r) => requestAnimationFrame(r));
-    select.value = docCurrent;
-    await select.updateComplete;
-    select.addEventListener('change', async () => {
-      docVersion = select.value;
+    bindChoiceBar('doc-version-select', async (val) => {
+      docVersion = val;
       await loadCurrentDoc();
     });
     currentDocId = docManifest.documents[0].id;
@@ -558,7 +543,7 @@ async function initDocs() {
     await loadCurrentDoc();
   } catch {
     docManifest = null;
-    select.hidden = true;
+    bar.hidden = true;
   }
 }
 
@@ -578,55 +563,34 @@ document.addEventListener('langchange', async () => {
   const left = Math.min(Math.max(chip.offsetLeft - (tocEl.clientWidth - chip.offsetWidth) / 2, 0), max);
   tocEl.scrollTo({ left, behavior: 'smooth' });
 });
-// 切换语言时只刷新添加表单文案，不重建 DOM（保留输入值）；类型/条件下拉选项文本同步重建
-document.addEventListener('langchange', async () => {
-  const typeId = document.getElementById('add-type').value;
+// 切换语言时只刷新添加表单文案，不重建 DOM（保留输入值）；
+// choice-bar 按钮文字通过 refreshChoiceLabels 刷新（替代 md-select 重建，无 displayText 快照问题）
+document.addEventListener('langchange', () => {
+  refreshChoiceLabels('add-type');
+  const typeId = getChoiceValue('add-type');
   if (!getObjType(typeId)) return;
   updateFormLabels();
-  await refreshTypeSelect(typeId);
   if (typeId === 'cond') {
-    const condSel = document.getElementById('cond-type');
-    if (condSel) await refreshCondTypeSelect(condSel);
+    refreshChoiceLabels('cond-type');
   }
 });
-
-// 条件类型下拉：重建选项文本 + 保留当前值（显示文本快照问题，同 refreshTypeSelect）
-async function refreshCondTypeSelect(select) {
-  const value = select.value;
-  const typeDef = getObjType('cond');
-  select.innerHTML = typeDef.condTypes
-    .map((c) => `<md-select-option value="${c.id}">${t(c.labelKey)}</md-select-option>`)
-    .join('');
-  await Promise.all([...select.querySelectorAll('md-select-option')].map((o) => o.updateComplete));
-  await new Promise((r) => requestAnimationFrame(r));
-  select.value = value;
-  await select.updateComplete;
-}
-
-// MD select 的显示文本是选中时对选项文本的快照，语言切换改 textContent 不会刷新它；
-// 重建选项（新选项 upgrade 时按新语言抓取 displayText）+ 重设 value 强制刷新显示文本
-async function refreshTypeSelect(value) {
-  const select = document.getElementById('add-type');
-  select.innerHTML = `
-    <md-select-option value="unknown">${t('addUnknownTitle')}</md-select-option>
-    <md-select-option value="point">${t('addPointTitle')}</md-select-option>
-    <md-select-option value="cond">${t('addCondTitle')}</md-select-option>
-  `;
-  // 等选项完成 custom element upgrade + 一帧后再设 value，否则 displayText 不同步
-  await Promise.all([...select.querySelectorAll('md-select-option')].map((o) => o.updateComplete));
-  await new Promise((r) => requestAnimationFrame(r));
-  select.value = value;
-  await select.updateComplete;
-}
 
 /* ---------------- 初始化 ---------------- */
 function bindEvents() {
   document.getElementById('add-submit-btn').addEventListener('click', handleAdd);
-  document.getElementById('del-btn').addEventListener('click', handleDelete);
   document.getElementById('solve-btn').addEventListener('click', handleSolve);
   document.getElementById('solve-expr').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') handleSolve();
   });
+  // 列表项删除按钮（×）：事件委托，三个列表容器统一处理（替代 del-select 下拉）
+  const onListDelClick = (e) => {
+    const btn = e.target.closest('.obj-del-btn');
+    if (!btn) return;
+    handleDelete(btn.dataset.id);
+  };
+  ['unknown-list', 'point-list', 'cond-list'].forEach((id) =>
+    document.getElementById(id).addEventListener('click', onListDelClick),
+  );
   // 导航 chips 横向滚动：鼠标滚轮（纵向）转成横向滚动，滚到边界自动放行给页面
   const tocEl = document.getElementById('doc-toc');
   tocEl.addEventListener(
@@ -649,7 +613,7 @@ function bindEvents() {
   initLang();
   bindEvents();
   setOnChange(renderAll);
-  document.getElementById('add-type').value = DEFAULT_OBJ_TYPE;
+  setChoiceValue('add-type', DEFAULT_OBJ_TYPE);
   renderAddForm(DEFAULT_OBJ_TYPE);
   await initDocs();
   // 浏览器持久化：启动时重放上次的历史，恢复现场

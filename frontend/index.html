@@ -25,28 +25,14 @@
     <link rel="stylesheet" href="vendor/katex/katex.min.css" />
   </head>
   <body>
-    <!-- 顶栏 -->
+    <!-- 顶栏：平铺按钮替代 md-menu（不依赖 popover API，Chrome 85 及以下可用） -->
     <header class="app-bar">
       <h1 class="app-title" data-i18n="appTitle">几何计算器</h1>
       <div class="app-bar-actions">
         <button id="status-dot" class="status-dot status-ok" data-i18n-aria="statusAria" aria-label="操作状态" title="操作状态"></button>
-        <button id="menu-btn" class="lang-switch" data-i18n-aria="menuBtnAria" aria-label="打开菜单">☰</button>
-        <md-menu id="app-menu" anchor="menu-btn" positioning="popover">
-          <md-menu-item id="menu-lang">
-            <div slot="headline" data-i18n="menuLangLabel">切换语言</div>
-            <div slot="end" id="menu-lang-current">中文</div>
-          </md-menu-item>
-          <md-menu-item id="menu-theme" keep-open>
-            <div slot="headline" data-i18n="themeLabel">深色模式</div>
-            <md-switch slot="end" id="menu-theme-switch"></md-switch>
-          </md-menu-item>
-          <md-menu-item id="menu-clear">
-            <div slot="headline" data-i18n="clearLocal">清除本地偏好</div>
-          </md-menu-item>
-          <md-menu-item id="menu-reset">
-            <div slot="headline" data-i18n="menuReset">重置计算器</div>
-          </md-menu-item>
-        </md-menu>
+        <md-switch id="theme-switch" data-i18n-aria="themeAria" aria-label="深色模式"></md-switch>
+        <button id="btn-lang" class="lang-switch" data-i18n-aria="menuLangLabel" aria-label="切换语言">EN</button>
+        <button id="btn-clear" class="icon-btn" data-i18n-aria="clearLocal" aria-label="清除本地偏好" title="清除本地偏好">🗑</button>
       </div>
     </header>
 
@@ -65,11 +51,11 @@
           <div class="card">
             <h2 data-i18n="addTitle">添加对象</h2>
             <div class="add-row">
-              <md-outlined-select id="add-type" data-i18n-label="addTypeLabel">
-                <md-select-option value="unknown" data-i18n="addUnknownTitle"></md-select-option>
-                <md-select-option value="point" data-i18n="addPointTitle"></md-select-option>
-                <md-select-option value="cond" data-i18n="addCondTitle"></md-select-option>
-              </md-outlined-select>
+              <div class="choice-bar" id="add-type" role="radiogroup" aria-label="类型" data-i18n-label="addTypeLabel">
+                <button type="button" class="choice-btn active" data-value="unknown" data-label-key="addUnknownTitle" role="radio" aria-checked="true">未知数</button>
+                <button type="button" class="choice-btn" data-value="point" data-label-key="addPointTitle" role="radio" aria-checked="false">点</button>
+                <button type="button" class="choice-btn" data-value="cond" data-label-key="addCondTitle" role="radio" aria-checked="false">条件</button>
+              </div>
             </div>
             <div id="add-form"></div>
             <div id="add-error" class="form-error" hidden></div>
@@ -92,13 +78,11 @@
               <h3 data-i18n="conds">条件</h3>
               <div id="cond-list" class="obj-list"></div>
             </div>
-            <div class="del-row">
-              <md-outlined-select id="del-select" data-i18n-label="delSelect">
-                <!-- 选项由 render.js 动态填充 -->
-              </md-outlined-select>
-            </div>
             <div id="del-error" class="form-error" hidden></div>
-            <md-filled-button id="del-btn" class="del-btn" data-i18n="delBtn">删除</md-filled-button>
+            <div class="card-actions">
+              <!-- 重置计算器：从顶栏移入添加页，避免顶栏拥挤；弹确认对话框防误触 -->
+              <md-text-button id="btn-reset" data-i18n="menuReset">重置计算器</md-text-button>
+            </div>
           </div>
         </div>
       </section>
@@ -123,9 +107,7 @@
         <div class="card docs-card">
           <div class="docs-toolbar">
             <span data-i18n="docVersion">文档版本</span>
-            <md-outlined-select id="doc-version-select" data-i18n-label="docVersion">
-              <!-- 选项由 main.js 从 doc/manifest.json 填充 -->
-            </md-outlined-select>
+            <div class="choice-bar scroll" id="doc-version-select" role="radiogroup" aria-label="文档版本" data-i18n-label="docVersion"></div>
           </div>
           <div class="docs-layout">
             <nav id="docs-list" class="docs-list"></nav>
@@ -138,36 +120,36 @@
       </section>
     </main>
 
-    <!-- 删除确认对话框 -->
-    <md-dialog id="del-dialog">
+    <!-- 删除确认对话框（quick：跳过开关动画，旧 WebView 内核上关闭动画会闪屏） -->
+    <md-dialog id="del-dialog" quick>
       <div slot="headline" data-i18n="delTitle">删除对象</div>
       <form slot="content" id="del-dialog-form" method="dialog">
         <div id="del-dialog-info"></div>
       </form>
       <div slot="actions">
-        <md-text-button form="del-dialog-form" value="cancel" data-i18n="cancel">取消</md-text-button>
-        <md-filled-button form="del-dialog-form" value="confirm" data-i18n="delBtn">删除</md-filled-button>
+        <md-text-button form="del-dialog-form" value="cancel" label="取消" data-i18n-label="cancel"></md-text-button>
+        <md-filled-button form="del-dialog-form" value="confirm" label="删除" data-i18n-label="delBtn"></md-filled-button>
       </div>
     </md-dialog>
 
     <!-- 操作状态详情对话框 -->
-    <md-dialog id="status-dialog">
+    <md-dialog id="status-dialog" quick>
       <div slot="headline" data-i18n="statusTitle">操作状态</div>
       <div slot="content" id="status-dialog-body" class="status-body"></div>
       <div slot="actions">
-        <md-text-button id="status-close-btn" data-i18n="closeBtn">关闭</md-text-button>
+        <md-text-button id="status-close-btn" label="关闭" data-i18n-label="closeBtn"></md-text-button>
       </div>
     </md-dialog>
 
     <!-- 重置计算器确认对话框 -->
-    <md-dialog id="reset-dialog">
+    <md-dialog id="reset-dialog" quick>
       <div slot="headline" data-i18n="resetTitle">重置计算器</div>
       <form slot="content" id="reset-dialog-form" method="dialog">
         <div data-i18n="resetHint">将清空所有未知数、点和条件，且不可撤销。</div>
       </form>
       <div slot="actions">
-        <md-text-button form="reset-dialog-form" value="cancel" data-i18n="cancel">取消</md-text-button>
-        <md-filled-button form="reset-dialog-form" value="confirm" data-i18n="resetBtn">重置</md-filled-button>
+        <md-text-button form="reset-dialog-form" value="cancel" label="取消" data-i18n-label="cancel"></md-text-button>
+        <md-filled-button form="reset-dialog-form" value="confirm" label="重置" data-i18n-label="resetBtn"></md-filled-button>
       </div>
     </md-dialog>
 

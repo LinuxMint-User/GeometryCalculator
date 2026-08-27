@@ -1,9 +1,9 @@
 {
-  "current": "2.5.0",
+  "current": "3.0",
   "versions": [
-    { "id": "2.5.0", "label": "v2.5.0" },
-    { "id": "2.4.0", "label": "v2.4.0" },
-    { "id": "2.2.0", "label": "v2.2.0" }
+    { "id": "3.0", "label": "v3.0" },
+    { "id": "2.0", "label": "v2.0" },
+    { "id": "1.0", "label": "v1.0" }
   ],
   "documents": [
     { "id": "maintainer-guide", "group": "maintainer", "title": "使用指南", "titleEn": "User Guide", "file": "guide.md", "fileEn": "guide.en.md" },

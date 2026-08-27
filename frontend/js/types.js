@@ -44,14 +44,13 @@ export const OBJ_TYPES = [
     fields: [
       { kind: 'text', key: 'name', labelKey: 'unknownName', phKey: 'unknownNamePh' },
       {
-        kind: 'select', key: 'domain', labelKey: 'domain', default: 'reals',
-        options: [
-          { value: 'reals', labelKey: 'domainReals' },
-          { value: 'positive', labelKey: 'domainPositive' },
-          { value: 'nonnegative', labelKey: 'domainNonnegative' },
-          { value: 'negative', labelKey: 'domainNegative' },
-          { value: 'nonpositive', labelKey: 'domainNonpositive' },
-          { value: 'nonzero', labelKey: 'domainNonzero' },
+        // 取值范围：正/零/负 三开关直接组合（对应引擎 {negative,zero,positive}
+        // 三布尔结构），全不勾=空集由 validate 拦截，支持"仅零"等预设外组合
+        kind: 'group', key: 'domain', labelKey: 'domain',
+        fields: [
+          { kind: 'checkbox', key: 'negative', labelKey: 'domainNeg', default: true },
+          { kind: 'checkbox', key: 'zero', labelKey: 'domainZero', default: true },
+          { kind: 'checkbox', key: 'positive', labelKey: 'domainPos', default: true },
         ],
       },
     ],
@@ -59,6 +58,8 @@ export const OBJ_TYPES = [
       const { name } = values;
       if (!VALID_UNKNOWN_NAMES.includes(name)) return 'errSymbolName';
       if (state.unknowns.some((s) => s.id === name)) return 'errDupName';
+      // 空集：至少勾选正/零/负一个，否则引擎无法定义值域
+      if (!(values.negative || values.zero || values.positive)) return 'errEmptyDomain';
       return null;
     },
   },
@@ -69,10 +70,21 @@ export const OBJ_TYPES = [
     fields: [
       { kind: 'text', key: 'name', labelKey: 'pointName', phKey: 'pointNamePh' },
       { kind: 'hint', key: 'pointHint', textKey: 'pointHint' },
-      { kind: 'text', key: 'x', labelKey: 'xCoord', phKey: 'xCoordPh' },
-      { kind: 'text', key: 'y', labelKey: 'yCoord', phKey: 'yCoordPh' },
-      { kind: 'text', key: 'line1', labelKey: 'line1', phKey: 'linePh' },
-      { kind: 'text', key: 'line2', labelKey: 'line2', phKey: 'linePh' },
+      // 坐标 / 所在直线分两组：每组的两个输入框同行显示
+      {
+        kind: 'group', key: 'coords', labelKey: 'coordGroup',
+        fields: [
+          { kind: 'text', key: 'x', labelKey: 'xCoord', phKey: 'xCoordPh' },
+          { kind: 'text', key: 'y', labelKey: 'yCoord', phKey: 'yCoordPh' },
+        ],
+      },
+      {
+        kind: 'group', key: 'lines', labelKey: 'lineGroup',
+        fields: [
+          { kind: 'text', key: 'line1', labelKey: 'line1', phKey: 'linePh' },
+          { kind: 'text', key: 'line2', labelKey: 'line2', phKey: 'linePh' },
+        ],
+      },
     ],
     validate(values) {
       const { name, x, y, line1, line2 } = values;
@@ -124,16 +136,6 @@ export const OBJ_TYPES = [
 
 export const DEFAULT_OBJ_TYPE = 'unknown';
 export const DEFAULT_COND_TYPE = 'expr_eq';
-
-// 取值范围下拉值 → 后端 {negative, zero, positive} 三布尔结构
-export const DOMAIN_SETS = {
-  reals: { negative: true, zero: true, positive: true },
-  positive: { negative: false, zero: false, positive: true },
-  nonnegative: { negative: false, zero: true, positive: true },
-  negative: { negative: true, zero: false, positive: false },
-  nonpositive: { negative: true, zero: true, positive: false },
-  nonzero: { negative: true, zero: false, positive: true },
-};
 
 export function getObjType(id) {
   return OBJ_TYPES.find((t) => t.id === id);
