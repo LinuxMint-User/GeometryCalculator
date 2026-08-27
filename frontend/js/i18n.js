@@ -212,10 +212,20 @@ export function setLang(lang) {
     const key = el.dataset.i18n;
     if (dict[key] !== undefined) el.textContent = dict[key];
   });
-  // 替换组件 label（Material Web 组件 label 走 attribute 即可响应）
+  // 替换组件文字（md-button 系：文字走 light DOM slot，label 属性仅用于 aria；
+  // md-outlined-text-field 等：label 是 property，setAttribute 有效）
+  const MD_BUTTON_TAGS = [
+    'MD-TEXT-BUTTON',
+    'MD-FILLED-BUTTON',
+    'MD-OUTLINED-BUTTON',
+    'MD-ELEVATED-BUTTON',
+    'MD-TONAL-BUTTON',
+  ];
   document.querySelectorAll('[data-i18n-label]').forEach((el) => {
     const key = el.dataset.i18nLabel;
-    if (dict[key] !== undefined) el.setAttribute('label', dict[key]);
+    if (dict[key] === undefined) return;
+    if (MD_BUTTON_TAGS.includes(el.tagName)) el.textContent = dict[key];
+    else el.setAttribute('label', dict[key]);
   });
   // 替换 aria-label（读屏无障碍）
   document.querySelectorAll('[data-i18n-aria]').forEach((el) => {
