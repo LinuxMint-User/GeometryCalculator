@@ -39,9 +39,9 @@ jobs:
         working-directory: src-tauri
         run: npx --yes @tauri-apps/cli@^2 build --bundles app,dmg
 
-      - name: 上传产物
+      - name: 上传产物（只挑 dmg；.app 是目录不便直接挂 Release，dmg 已含 .app）
         uses: actions/upload-artifact@v7
         with:
           name: macos
-          path: src-tauri/target/release/bundle/
+          path: src-tauri/target/release/bundle/dmg/*.dmg
           if-no-files-found: error

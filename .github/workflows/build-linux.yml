@@ -57,9 +57,11 @@ jobs:
         working-directory: src-tauri
         run: npx --yes @tauri-apps/cli@^2 build --bundles deb,rpm
 
-      - name: 上传产物
+      - name: 上传产物（只挑安装包，不传 deb/rpm 打包中间文件）
         uses: actions/upload-artifact@v7
         with:
           name: linux
-          path: src-tauri/target/release/bundle/
+          path: |
+            src-tauri/target/release/bundle/deb/*.deb
+            src-tauri/target/release/bundle/rpm/*.rpm
           if-no-files-found: error

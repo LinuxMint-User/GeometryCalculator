@@ -105,7 +105,7 @@ jobs:
           PY
 
       - name: 创建发布草稿（不公开，人工确认后发布）
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3 # v3 = Node 24 运行时；v2 已随 Node 20 弃用
         with:
           draft: true
           tag_name: ${{ github.ref_name }}
