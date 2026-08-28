@@ -1,15 +1,19 @@
 # =============================================================================
-# Release 全量构建 + 发布草稿工作流
+# Release 全量构建 + 发布工作流
 #
 # 触发方式：
-#   1. 推送 v* 标签（如 v2.5.0）→ 调用四个平台的构建 workflow（reusable），
-#      产物挂到 GitHub Release【草稿】（draft，不公开，需人工检查后发布）
+#   1. 推送 v* 标签（如 v2.5.0 / v2.5.1）→ 调用四个平台的构建 workflow
+#      （reusable），产物挂到 GitHub Release
 #   2. workflow_dispatch 手动触发 → 全量构建（不创建 Release，仅留 artifacts）
+#
+# 发布策略：
+#   - 正式版（vX.Y.0）→ 创建【草稿】release，人工检查后手动发布
+#   - 补丁版（vX.Y.Z，Z>0）→ 直接【自动发布】（热修复无需人工审核）
+#     补丁版仍需先更新 frontend/doc/maintainer/changelog.md 再打 tag，
+#     发布说明取自 changelog 对应章节，务必使用正式文案（勿含"待发布"等字样）
 #
 # 单平台单独构建请在 Actions 面板手动触发对应的 workflow：
 #   Build Linux / Build Windows / Build macOS / Build Android
-#
-# 发布永远是草稿：机器只负责构建与挂产物，发布动作由维护者人工完成。
 # =============================================================================
 name: Release Build
 
@@ -49,18 +53,31 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: 判断版本类型（补丁 vX.Y.Z（Z>0）自动发布；正式版 vX.Y.0 为草稿）
+        id: ver
+        run: |
+          tag="${{ github.ref_name }}"
+          draft=true
+          if [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.([0-9]+)$ && "${BASH_REMATCH[1]}" != "0" ]]; then
+            draft=false
+          fi
+          echo "draft=$draft" >> "$GITHUB_OUTPUT"
+
       - name: 下载全部构建产物
         uses: actions/download-artifact@v8
         with:
           path: release-assets
 
       - name: 生成发布说明（changelog 提取 + 校验和表格）与 sha256sums.txt
+        env:
+          DRAFT: ${{ steps.ver.outputs.draft }}
         run: |
           python3 - <<'PY'
           import glob, hashlib, os, re
 
           tag = os.environ["GITHUB_REF_NAME"]        # 形如 v2.5.0
           version = tag.lstrip("v")                  # 形如 2.5.0
+          draft = os.environ["DRAFT"] == "true"
 
           # 收集全部产物并计算 SHA256
           files = sorted(
@@ -86,16 +103,29 @@ jobs:
 
           # 组装发布说明正文（单行拼接，避免多行 f-string 破坏 YAML 块标量缩进）
           rows = "\n".join(f"| {name} | `{h[:8]}` |" for name, h in sums)
-          body = (
-              f"## {tag}（自动构建草稿）\n\n"
-              f"{notes}\n\n"
-              "### 安装包与校验和\n\n"
-              "| 文件 | SHA256（前 8 位） |\n"
-              "|---|---|\n"
-              f"{rows}\n\n"
-              "> 由 GitHub Actions 自动构建，**尚未正式发布**。\n"
-              "> APK 为 debug 自测版（未签名）。请逐一下载验证，确认无误后手动发布本草稿。\n"
-          )
+          if draft:
+              # 正式版（vX.Y.0）：草稿提示语，提醒人工审核
+              body = (
+                  f"## {tag}（发布草稿，待人工审核）\n\n"
+                  f"{notes}\n\n"
+                  "### 安装包与校验和\n\n"
+                  "| 文件 | SHA256（前 8 位） |\n"
+                  "|---|---|\n"
+                  f"{rows}\n\n"
+                  "> 由 GitHub Actions 自动构建，**尚未正式发布**。\n"
+                  "> APK 为 debug 自测版（未签名）。请逐一下载验证，确认无误后手动发布本草稿。\n"
+              )
+          else:
+              # 补丁版（vX.Y.Z）：正式文案，直接发布，无任何草稿/待发布提示
+              body = (
+                  f"## {tag}\n\n"
+                  f"{notes}\n\n"
+                  "### 安装包与校验和\n\n"
+                  "| 文件 | SHA256（前 8 位） |\n"
+                  "|---|---|\n"
+                  f"{rows}\n\n"
+                  "> APK 为 debug 自测版（未签名），正式安装包请以官方发布渠道为准。\n"
+              )
           open("release_body.md", "w", encoding="utf-8").write(body)
 
           # 生成校验和文件
@@ -104,10 +134,10 @@ jobs:
                   out.write(f"{h}  {name}\n")
           PY
 
-      - name: 创建发布草稿（不公开，人工确认后发布）
+      - name: 创建发布（补丁自动发布；正式版为草稿待人工审核）
         uses: softprops/action-gh-release@v3 # v3 = Node 24 运行时；v2 已随 Node 20 弃用
         with:
-          draft: true
+          draft: ${{ steps.ver.outputs.draft }}
           tag_name: ${{ github.ref_name }}
           body_path: release_body.md
           files: |
