@@ -96,7 +96,7 @@ tauri android init                    # 首次生成 Android 工程（src-tauri/
 tauri android build --apk --debug     # 构建 debug APK
 ```
 
-APK 产物：`src-tauri/gen/android/app/build/outputs/apk/universal/debug/geometry-calculator_2.5.0_universal-debug.apk`（文件名含应用名/版本/flavor）
+APK 产物：`src-tauri/gen/android/app/build/outputs/apk/universal/debug/geometry-calculator_2.5.2_universal-debug.apk`（文件名含应用名/版本/flavor）
 
 - 系统要求：Android 9（API 28）及以上；WebView 内核要求同「下载安装包」说明
 - 签名：默认构建 debug（自动使用 debug 签名，产物可直接安装）；release 未配置 keystore 时产物为 unsigned（文件名含 unsigned），正式发布需先配置签名

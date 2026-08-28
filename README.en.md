@@ -97,7 +97,7 @@ tauri android init                    # generate the Android project once (src-t
 tauri android build --apk --debug     # build a debug APK
 ```
 
-APK output: `src-tauri/gen/android/app/build/outputs/apk/universal/debug/geometry-calculator_2.5.0_universal-debug.apk`
+APK output: `src-tauri/gen/android/app/build/outputs/apk/universal/debug/geometry-calculator_2.5.2_universal-debug.apk`
 
 - Requirement: Android 9 (API 28) or later; WebView requirement as described under "Download a release"
 - Signing: the default build is debug (auto-signed with the debug keystore, installable); a release build without a configured keystore is unsigned (the filename contains "unsigned") — configure signing before publishing

@@ -1,7 +1,7 @@
 {
   "name": "geometry-calculator",
   "private": true,
-  "version": "2.5.0",
+  "version": "2.5.2",
   "description": "几何计算器：符号几何问题求解器（TS 引擎 + Tauri 壳）",
   "scripts": {
     "tauri": "tauri"

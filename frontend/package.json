@@ -1,7 +1,7 @@
 {
   "name": "geometry-calculator-frontend",
   "private": true,
-  "version": "2.5.0",
+  "version": "2.5.2",
   "description": "几何计算器前端：esbuild 将入口及全部依赖（含本地 vendor）打包并降级语法，兼容旧 WebView",
   "scripts": {
     "build": "node build.mjs"

@@ -1,6 +1,20 @@
 # Changelog
 
-## v2.5.0 (pending)
+## v2.5.2
+
+- Fix packaged version number: now consistently 2.5.2 (v2.5.1 artifacts still showed 2.5.0 in filenames and the About dialog)
+- No functional changes; the fixes are listed under v2.5.1
+
+## v2.5.1
+
+- Fix startup white screen: a "Loading…" splash now covers the window while the app initializes and fades out once the main UI is ready (slow devices no longer sit on a blank page)
+- Fix delete/status/reset dialogs showing buttons with no text
+- Fix conditions in the object list showing the wrong content: now shows the condition itself (e.g. AB⊥CD) instead of the underlying equation
+- Fix LaTeX commands (e.g. \perp) in the delete dialog's dependent-objects list rendering as raw text
+- Fix display and interaction issues on old devices (Android 9 / low-end desktops): dialog close flicker, vertically stacked app bar title, overflowing English button text
+- Fix missing error message when an unknown name collides with reserved coordinate names (now shown in both languages)
+
+## v2.5.0
 
 - New Tauri desktop shell: runs as a native window on Linux / Windows / macOS (`tauri dev` to develop, `tauri build` to package)
 - New Android support: build an APK with `tauri android build --apk --debug`; requires Android 7.0 (API 24) or later, supports arm64-v8a / armeabi-v7a / x86 / x86_64
