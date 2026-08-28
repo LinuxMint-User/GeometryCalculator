@@ -42,6 +42,37 @@
   --md-sys-color-shadow: #000000;
 }
 
+/* 启动遮罩：盖住 WebView/浏览器加载 bundle 与前端初始化期间的空白，
+   init() 就绪后由 main.js 加 .splash-hide 淡出并移除。
+   四边定位不用 inset 简写（Chrome 85 不支持）。 */
+.splash {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--md-sys-color-surface, #fef7ff);
+  color: var(--md-sys-color-on-surface, #1d1b20);
+  transition: opacity 0.3s ease;
+}
+.splash-hide {
+  opacity: 0;
+  pointer-events: none;
+}
+.splash-title {
+  font-size: 20px;
+  font-weight: 500;
+}
+.splash-loading {
+  margin-top: 8px;
+  font-size: 13px;
+  opacity: 0.7;
+}
+
 [data-theme="dark"] {
   /* ---- 深色主题 ---- */
   --md-sys-color-primary: #d0bcff;

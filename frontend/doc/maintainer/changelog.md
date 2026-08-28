@@ -1,6 +1,6 @@
 # 更新日志
 
-## v2.5.0（待发布）
+## v2.5.0
 
 - 新增 Tauri 桌面壳：桌面端（Linux / Windows / macOS）以原生窗口运行，`tauri dev` 开发 / `tauri build` 打包
 - 新增 Android 支持：可构建 APK（`tauri android build --apk --debug`），系统要求 Android 7.0（API 24）及以上，支持 arm64-v8a / armeabi-v7a / x86 / x86_64 四种架构

@@ -608,15 +608,32 @@ function bindEvents() {
   );
 }
 
+// 隐藏启动遮罩（淡出后移除；transitionend 与定时器双兜底）
+function hideSplash() {
+  const el = document.getElementById('splash');
+  if (!el || el.dataset.hidden) return;
+  el.dataset.hidden = '1';
+  el.classList.add('splash-hide');
+  const remove = () => el.remove();
+  el.addEventListener('transitionend', remove, { once: true });
+  setTimeout(remove, 1000); // transitionend 兜底（如动画被系统省电打断）
+}
+
 (async function init() {
-  initTheme();
-  initLang();
-  bindEvents();
-  setOnChange(renderAll);
-  setChoiceValue('add-type', DEFAULT_OBJ_TYPE);
-  renderAddForm(DEFAULT_OBJ_TYPE);
-  await initDocs();
-  // 浏览器持久化：启动时重放上次的历史，恢复现场
-  api.loadFromFile();
-  await refresh();
+  // 兜底：初始化异常/网络卡死时也强制隐藏，避免永远停在"加载中"
+  setTimeout(hideSplash, 8000);
+  try {
+    initTheme();
+    initLang();
+    bindEvents();
+    setOnChange(renderAll);
+    setChoiceValue('add-type', DEFAULT_OBJ_TYPE);
+    renderAddForm(DEFAULT_OBJ_TYPE);
+    await initDocs();
+    // 浏览器持久化：启动时重放上次的历史，恢复现场
+    api.loadFromFile();
+    await refresh();
+  } finally {
+    hideSplash();
+  }
 })();

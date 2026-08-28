@@ -25,6 +25,15 @@
     <link rel="stylesheet" href="vendor/katex/katex.min.css" />
   </head>
   <body>
+    <!-- 启动遮罩：WebView/浏览器加载 bundle 与前端初始化期间盖住白屏，
+         初始化就绪后由 main.js 淡出移除（语言未初始化，标题固定中文） -->
+    <div id="splash" class="splash">
+      <div class="splash-box">
+        <div class="splash-title">几何计算器</div>
+        <div class="splash-loading">加载中…</div>
+      </div>
+    </div>
+
     <!-- 顶栏：平铺按钮替代 md-menu（不依赖 popover API，Chrome 85 及以下可用） -->
     <header class="app-bar">
       <h1 class="app-title" data-i18n="appTitle">几何计算器</h1>
